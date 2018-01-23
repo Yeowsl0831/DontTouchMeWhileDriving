@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
 
 enum DeviceStatus{
@@ -41,8 +42,10 @@ public class ServiceManager extends Service {
 
                 if(mMotionSensorManager != null){
                     if(var1 == DeviceStatus.DEVICE_IN_DRIVING_MODE){
+                        Log.d(TAG, "Start the accelerometer.");
                         mMotionSensorManager.start();
                     }else{
+                        Log.d(TAG, "Stop the accelerometer.");
                         mMotionSensorManager.stop();
                     }
                 }
@@ -52,9 +55,26 @@ public class ServiceManager extends Service {
         mMotionSensorManager = new MotionSensorManager(getApplicationContext()) {
             @Override
             public void processSensorUIUpdateEvent() {
-                Log.d(TAG, "Users play phone while driving");
+                Log.e(TAG, "Users play phone while driving");
+                sendMessageToActivity("DeviceStatus",true);
+
+            }
+
+            @Override
+            public void processSensorIdleEvent() {
+                sendMessageToActivity("DeviceStatus",false);
+                Log.e(TAG, "Users bertaubat no play phone already.");
             }
         };
+
+        //TODO: rmv
+        //mMotionSensorManager.start();
+    }
+
+    private void sendMessageToActivity(String action, boolean state) {
+        Intent intent = new Intent ("DeviceStatus"); //put the same message as in the filter you used in the activity when registering the receiver
+        intent.putExtra("state", state);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
     @Override
@@ -65,12 +85,16 @@ public class ServiceManager extends Service {
             //notify users device status
             sendNotification(mDeviceSpeedDetector.getDeviceMovementStatus());
         }
+        //TODO:add to display "stop" on activity button
+        //sendMessageToActivity("ServiceStarted", true);
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        //TODO: add to display "start" on activity button
+        //sendMessageToActivity("ServiceStarted", false);
     }
 
     public void sendNotification(DeviceStatus deviceStatus) {

@@ -16,6 +16,7 @@ public abstract class DeviceSpeedDetector implements LocationListener {
     private Location lastLocation;
     private Context mContext;
     private DeviceStatus mDeviceStatus;
+    private DeviceStatus mLastDeviceStatus;
 
     public abstract void speedEventHandle(DeviceStatus var1);
 
@@ -23,6 +24,7 @@ public abstract class DeviceSpeedDetector implements LocationListener {
         lastLocation = null;
         mContext = context;
         mDeviceStatus = DeviceStatus.DEVICE_IN_IDLE_MODE;
+        mLastDeviceStatus = DeviceStatus.DEVICE_IN_IDLE_MODE;
     }
 
     public void start(){
@@ -53,6 +55,9 @@ public abstract class DeviceSpeedDetector implements LocationListener {
             }
             int speed = (int)((distance/timeElapsed)*(18/5));
 
+            //get last device status
+            mLastDeviceStatus = mDeviceStatus;
+
             if(speed >= 30){
                 mDeviceStatus = DeviceStatus.DEVICE_IN_DRIVING_MODE;
             }else if(speed < 30 && speed > 0){
@@ -61,7 +66,10 @@ public abstract class DeviceSpeedDetector implements LocationListener {
                 mDeviceStatus = DeviceStatus.DEVICE_IN_IDLE_MODE;
             }
 
-            speedEventHandle(mDeviceStatus);
+            //status change only update
+            if(mDeviceStatus != mLastDeviceStatus){
+                speedEventHandle(mDeviceStatus);
+            }
         }
     }
 
