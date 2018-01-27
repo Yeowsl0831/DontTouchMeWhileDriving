@@ -5,6 +5,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.util.Log;
 
 
 /**
@@ -55,6 +56,7 @@ public abstract class DeviceSpeedDetector implements LocationListener {
             }
             int speed = (int)((distance/timeElapsed)*(18/5));
 
+            Log.d(TAG, "Speed: "+speed+"km/h");
             //get last device status
             mLastDeviceStatus = mDeviceStatus;
 

@@ -41,6 +41,7 @@ public class ServiceManager extends Service {
                 sendNotification(var1);
 
                 if(mMotionSensorManager != null){
+                    //TODO:DeviceStatus.DEVICE_IN_DRIVING_MODE
                     if(var1 == DeviceStatus.DEVICE_IN_DRIVING_MODE){
                         Log.d(TAG, "Start the accelerometer.");
                         mMotionSensorManager.start();
@@ -57,7 +58,6 @@ public class ServiceManager extends Service {
             public void processSensorUIUpdateEvent() {
                 Log.e(TAG, "Users play phone while driving");
                 sendMessageToActivity("DeviceStatus",true);
-
             }
 
             @Override
@@ -86,33 +86,38 @@ public class ServiceManager extends Service {
             sendNotification(mDeviceSpeedDetector.getDeviceMovementStatus());
         }
         //TODO:add to display "stop" on activity button
-        //sendMessageToActivity("ServiceStarted", true);
+       //sendMessageToActivity("isServiceStarted", true);
         return super.onStartCommand(intent, flags, startId);
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
+        mMotionSensorManager.stop();
         //TODO: add to display "start" on activity button
-        //sendMessageToActivity("ServiceStarted", false);
+        //sendMessageToActivity("isServiceStarted", true);
     }
 
     public void sendNotification(DeviceStatus deviceStatus) {
         NotificationCompat.Builder notify = new NotificationCompat.Builder(this);
-        notify.setSmallIcon(R.drawable.ic_directions_car_black_24dp);
+
         notify.setContentTitle("Monitor Users Device Status");
 
         switch (deviceStatus){
             case DEVICE_IN_IDLE_MODE:
+                notify.setSmallIcon(R.drawable.ic_pan_tool_black_24dp);
                 notify.setContentText("Device is Idle Mode...");
                 break;
             case DEVICE_IN_WALKING_MODE:
+                notify.setSmallIcon(R.drawable.ic_directions_walk_black_24dp);
                 notify.setContentText("Device is Walking Mode...");
                 break;
             case DEVICE_IN_DRIVING_MODE:
+                notify.setSmallIcon(R.drawable.ic_directions_car_black_24dp);
                 notify.setContentText("Device is Driving Mode...");
                 break;
             default:
+                notify.setSmallIcon(R.drawable.ic_error_black_24dp);
                 notify.setContentText("Application Encounter Error!");
                 break;
         }

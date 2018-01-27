@@ -33,6 +33,8 @@ public abstract class MotionSensorManager implements SensorEventListener {
     private double mCurrentVerticalAccelerometer;
     private double mLastVerticalAccelerometer;
     private boolean mFirstLaunchAccelerometer;
+    private boolean mIsDeviceShifted;
+    private boolean mIsFireUIUpdateEvent;
     private TimerHandle mTimerHandle;
 
     MotionSensorManager(Context contxt){
@@ -43,11 +45,16 @@ public abstract class MotionSensorManager implements SensorEventListener {
         mCurrentVerticalAccelerometer = 0.0;
         mLastVerticalAccelerometer = 0.0;
         mFirstLaunchAccelerometer = true;
+        mIsDeviceShifted = false;
+        mIsFireUIUpdateEvent = false;
 
-        mTimerHandle = new TimerHandle(10000, 1000) {
+        mTimerHandle = new TimerHandle(5000, 1000) {
             @Override
             public void processTimeOutEvent() {
-                processSensorIdleEvent();
+                if(mIsFireUIUpdateEvent == true){
+                    mIsFireUIUpdateEvent = false;
+                    processSensorIdleEvent();
+                }
             }
         };
     }
@@ -69,15 +76,19 @@ public abstract class MotionSensorManager implements SensorEventListener {
 
         //when location service is stopped, accelerometer will stop too
         //make sure stop the timer is launched before.
-        if(mTimerHandle.getTimerEnableState() == true){
+        if(mTimerHandle.isTimerRunning() == true){
             mTimerHandle.onCancel();
         }
+    }
+
+    public boolean isDeviceTouchByUser(){
+        return mIsDeviceShifted;
     }
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
 
-        //Log.e(TAG, "horizontal:"+sensorEvent.values[0]+" vertical:"+sensorEvent.values[1]+" height:"+sensorEvent.values[2]);
+        //Log.d(TAG, "horizontal:"+sensorEvent.values[0]+" vertical:"+sensorEvent.values[1]+" height:"+sensorEvent.values[2]);
         mCurrentHorizonAccelerometer = sensorEvent.values[0];
         mCurrentVerticalAccelerometer = sensorEvent.values[1];
 
@@ -93,15 +104,23 @@ public abstract class MotionSensorManager implements SensorEventListener {
 
         if(Math.abs(diffHorizonAccelerometer) > 2.0 && Math.abs(diffVerticalAccelerometer) > 2.0 ||
           (Math.abs(diffHorizonAccelerometer) > 6.0) || (Math.abs(diffHorizonAccelerometer) > 6.0)){
-            processSensorUIUpdateEvent();
+            //don't always update the UI until the timer is expired and released.
+            if(mIsFireUIUpdateEvent == false){
+                mIsFireUIUpdateEvent = true;
+                processSensorUIUpdateEvent();
+            }
 
-            if(mTimerHandle.getTimerEnableState() == true){
+
+            //update flag to tell caller of the flag about device is touch/play by users.
+            mIsDeviceShifted = true;
+
+            if(mTimerHandle.isTimerRunning() == true){
                 //if timer launched before, reset timer and relaunch again
                 mTimerHandle.onCancel();
                 mTimerHandle.onStart();
             }
         }else{
-            if(mTimerHandle.getTimerEnableState() == false){
+            if(mTimerHandle.isTimerRunning() == false){
                 mTimerHandle.onStart();
             }
         }

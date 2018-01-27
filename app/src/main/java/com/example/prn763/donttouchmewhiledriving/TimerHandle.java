@@ -36,7 +36,7 @@ public abstract class TimerHandle extends CountDownTimer{
         mTimerState = false;
     }
 
-    public boolean getTimerEnableState(){
+    public boolean isTimerRunning(){
         return mTimerState;
     }
 }
