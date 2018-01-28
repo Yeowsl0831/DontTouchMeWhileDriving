@@ -4,6 +4,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.os.Binder;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
@@ -22,14 +23,23 @@ enum DeviceStatus{
 
 public class ServiceManager extends Service {
     private final static String TAG = "ServiceManager";
+    private final IBinder serviceBinder =  new LocalServiceBinder();
     private DeviceSpeedDetector mDeviceSpeedDetector = null;
     private MotionSensorManager mMotionSensorManager = null;
+    private boolean mIsServiceStarted = false;
+
 
 
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        return null;
+        return serviceBinder;
+    }
+
+    public class LocalServiceBinder extends Binder{
+        ServiceManager getService(){
+            return ServiceManager.this;
+        }
     }
 
     @Override
@@ -38,6 +48,7 @@ public class ServiceManager extends Service {
         mDeviceSpeedDetector = new DeviceSpeedDetector(getApplicationContext()) {
             @Override
             public void speedEventHandle(DeviceStatus var1) {
+
                 sendNotification(var1);
 
                 if(mMotionSensorManager != null){
@@ -57,12 +68,12 @@ public class ServiceManager extends Service {
             @Override
             public void processSensorUIUpdateEvent() {
                 Log.e(TAG, "Users play phone while driving");
-                sendMessageToActivity("DeviceStatus",true);
+                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS);
             }
 
             @Override
             public void processSensorIdleEvent() {
-                sendMessageToActivity("DeviceStatus",false);
+                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_IDLE);
                 Log.e(TAG, "Users bertaubat no play phone already.");
             }
         };
@@ -71,10 +82,14 @@ public class ServiceManager extends Service {
         //mMotionSensorManager.start();
     }
 
-    private void sendMessageToActivity(String action, boolean state) {
+    private void sendMessageToActivity(String action, deviceUIUpdateState state) {
         Intent intent = new Intent ("DeviceStatus"); //put the same message as in the filter you used in the activity when registering the receiver
-        intent.putExtra("state", state);
+        intent.putExtra("state", state.ordinal());
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+    }
+
+    public boolean getButtonToggleState(){
+        return mIsServiceStarted;
     }
 
     @Override
@@ -84,6 +99,8 @@ public class ServiceManager extends Service {
             mDeviceSpeedDetector.start();
             //notify users device status
             sendNotification(mDeviceSpeedDetector.getDeviceMovementStatus());
+            //update service flag
+            mIsServiceStarted = true;
         }
         //TODO:add to display "stop" on activity button
        //sendMessageToActivity("isServiceStarted", true);
@@ -94,8 +111,9 @@ public class ServiceManager extends Service {
     public void onDestroy() {
         super.onDestroy();
         mMotionSensorManager.stop();
-        //TODO: add to display "start" on activity button
-        //sendMessageToActivity("isServiceStarted", true);
+        mIsServiceStarted = false;
+
+        sendMessageToActivity("DeviceStatus", deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_STOP_TONE);
     }
 
     public void sendNotification(DeviceStatus deviceStatus) {

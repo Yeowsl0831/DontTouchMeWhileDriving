@@ -2,18 +2,20 @@ package com.example.prn763.donttouchmewhiledriving;
 
 
 import android.content.BroadcastReceiver;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.ServiceConnection;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.os.IBinder;
 import android.os.Vibrator;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Gravity;
-import android.view.KeyEvent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -22,10 +24,18 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+
 enum emojiType{
     NO_EMOJI,
     ANGRY_EMOJI,
     HAPPY_EMOJI
+}
+
+enum deviceUIUpdateState{
+    UPDATE_DEVICE_UI_INVALID,
+    UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS,
+    UPDATE_DEVICE_UI_PHONE_IS_IDLE,
+    UPDATE_DEVICE_UI_PHONE_STOP_TONE
 }
 
 public class MainActivity extends AppCompatActivity{
@@ -35,6 +45,9 @@ public class MainActivity extends AppCompatActivity{
     private MediaPlayer mMediaPlayer;
     private AudioManager mAudioManager;
     private Vibrator mVibrator;
+    private ServiceManager mServiceBinder;
+    private boolean mIsServiceStarted;
+    private boolean mIsBound;
 
 
     //TODO:rmv
@@ -53,6 +66,11 @@ public class MainActivity extends AppCompatActivity{
         tv = findViewById(R.id.deviceStatus);
         //setup start button
         configureStartServiceButton();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
 
     }
 
@@ -62,6 +80,9 @@ public class MainActivity extends AppCompatActivity{
         intentFilter.addAction("DeviceStatus");
         //intentFilter.addAction("ServiceStarted");
         LocalBroadcastManager.getInstance(this).registerReceiver(BReceiver, intentFilter);
+
+        Intent intent = new Intent(this, ServiceManager.class);
+        bindService(intent, mConnection, Context.BIND_AUTO_CREATE);
     }
 
     @Override
@@ -81,6 +102,36 @@ public class MainActivity extends AppCompatActivity{
         stopTone();
     }
 
+    /** Defines callbacks for service binding, passed to bindService() */
+    private ServiceConnection mConnection = new ServiceConnection() {
+
+        @Override
+        public void onServiceConnected(ComponentName className, IBinder service) {
+            Log.e(TAG,"onServiceConnected");
+            ServiceManager.LocalServiceBinder binder = (ServiceManager.LocalServiceBinder) service;
+            mServiceBinder = binder.getService();
+            mIsBound = true;
+
+
+            Log.e(TAG,"mServiceBinder");
+            if(startServiceBtn != null && mServiceBinder != null){
+
+                mIsServiceStarted = mServiceBinder.getButtonToggleState();
+
+                if(mIsServiceStarted == true){
+                    startServiceBtn.setText("Stop");
+                }
+                else{
+                    startServiceBtn.setText("Start");
+                }
+            }
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName arg0) {
+            mIsBound = false;
+        }
+    };
 
     private BroadcastReceiver  BReceiver = new BroadcastReceiver(){
 
@@ -88,30 +139,24 @@ public class MainActivity extends AppCompatActivity{
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
             if(action == "DeviceStatus"){
-                boolean isPlayPhone = intent.getBooleanExtra("state", false);
+                int uiUpdateState = intent.getIntExtra("state", -1);
 
-                if(isPlayPhone){
-                    displayCustomToast(emojiType.ANGRY_EMOJI);
-                    emitMaxWarmingAlertTone();
-                    processVibration(true);
-                    tv.setText("Don't Play While Driving");
-                }else{
-                    displayCustomToast(emojiType.HAPPY_EMOJI);
-                    stopTone();
-                    processVibration(false);
-                    tv.setText("Thanks for your cooperation not playing phone.");
+                switch(deviceUIUpdateState.values()[uiUpdateState]){
+                    case UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS:
+                        displayCustomToast(emojiType.ANGRY_EMOJI);
+                        emitMaxWarmingAlertTone();
+                        processVibration(true);
+                        break;
+                    case UPDATE_DEVICE_UI_PHONE_IS_IDLE:
+                        displayCustomToast(emojiType.HAPPY_EMOJI);
+                        stopTone();
+                        processVibration(false);
+                        break;
+                    case UPDATE_DEVICE_UI_PHONE_STOP_TONE:
+                        stopTone();
+                        break;
                 }
-            }/*else if(action == "isServiceStarted"){
-                boolean isStarted = intent.getBooleanExtra("state", false);
-                Log.e(TAG, "Received Button broadcast message");
-                if(isStarted){
-                    startServiceBtn.setText("Stop");
-                }else{
-                    startServiceBtn.setText("Start");
-                }
-            }*/
-
-
+            }
         }
     };
 
@@ -153,7 +198,6 @@ public class MainActivity extends AppCompatActivity{
                 mVibrator.cancel();
             }
         }
-
     }
 
     private void configureStartServiceButton(){
@@ -163,11 +207,21 @@ public class MainActivity extends AppCompatActivity{
             @Override
             public void onClick(View view) {
                 Intent svcIntent = new Intent(MainActivity.this, ServiceManager.class);
-                startService(svcIntent);
-                startServiceBtn.setText("Stop");
 
-                //shutdown activity
-                finish();
+                if(mIsServiceStarted == true){
+                    stopService(svcIntent);
+                    mIsServiceStarted = false;
+                    startServiceBtn.setText("Start");
+                }else{
+                    startService(svcIntent);
+                    mIsServiceStarted = true;
+                    startServiceBtn.setText("Stop");
+
+                    //shutdown activity
+                    finish();
+                }
+
+
             }
         };
         startServiceBtn.setOnClickListener(startServiceListener);

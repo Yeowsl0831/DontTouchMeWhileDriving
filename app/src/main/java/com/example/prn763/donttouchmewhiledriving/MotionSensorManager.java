@@ -77,7 +77,7 @@ public abstract class MotionSensorManager implements SensorEventListener {
         //when location service is stopped, accelerometer will stop too
         //make sure stop the timer is launched before.
         if(mTimerHandle.isTimerRunning() == true){
-            mTimerHandle.onCancel();
+            mTimerHandle.onCancel(true);
         }
     }
 
@@ -110,13 +110,12 @@ public abstract class MotionSensorManager implements SensorEventListener {
                 processSensorUIUpdateEvent();
             }
 
-
             //update flag to tell caller of the flag about device is touch/play by users.
             mIsDeviceShifted = true;
 
             if(mTimerHandle.isTimerRunning() == true){
                 //if timer launched before, reset timer and relaunch again
-                mTimerHandle.onCancel();
+                mTimerHandle.onCancel(false);
                 mTimerHandle.onStart();
             }
         }else{

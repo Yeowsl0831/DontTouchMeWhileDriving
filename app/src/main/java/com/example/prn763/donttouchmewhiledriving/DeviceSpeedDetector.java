@@ -1,10 +1,13 @@
 package com.example.prn763.donttouchmewhiledriving;
 
 import android.content.Context;
+import android.content.Intent;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
+import android.media.MediaPlayer;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 
 
@@ -30,6 +33,14 @@ public abstract class DeviceSpeedDetector implements LocationListener {
 
     public void start(){
         LocationManager locationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+        if(locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)){
+           Log.d(TAG, "GPS is Enabled");
+        }
+        else{
+            //TODO: add handle to turn on the gps provider
+            Log.d(TAG, "GPS not Found");
+        }
+
         locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, this);
     }
 
