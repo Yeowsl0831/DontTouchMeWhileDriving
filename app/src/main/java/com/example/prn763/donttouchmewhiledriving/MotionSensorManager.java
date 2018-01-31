@@ -19,10 +19,18 @@ enum DeviceMotionStatus{
     DEVICE_MOTION_IS_MOVE_DOWN
 }
 
+enum UiEventTimerState{
+    TIMER_STATE_IS_DO_NOTHING_EVENT,
+    TIMER_STATE_IS_COUNT_DOWN_EVENT,
+    TIMER_STATE_IS_FIRE_ALERT_EVENT
+}
+
 public abstract class MotionSensorManager implements SensorEventListener {
 
-    abstract public void processSensorUIUpdateEvent();
+    abstract public void processUpdateCountDownUiEvent();
     abstract public void processSensorIdleEvent();
+    abstract public void updateTickUiEvent();
+    abstract public void updateFireAlertUiEvent();
 
     private final static String TAG = "MotionSensorManager";
     private Context context;
@@ -34,8 +42,10 @@ public abstract class MotionSensorManager implements SensorEventListener {
     private double mLastVerticalAccelerometer;
     private boolean mFirstLaunchAccelerometer;
     private boolean mIsDeviceShifted;
-    private boolean mIsFireUIUpdateEvent;
+    private boolean mIsFireAlertUiUpdated;
+    private UiEventTimerState mTimerEvent;
     private TimerHandle mTimerHandle;
+    private TimerHandle mTimerFireAlertEvent;
 
     MotionSensorManager(Context contxt){
         context = contxt;
@@ -46,15 +56,43 @@ public abstract class MotionSensorManager implements SensorEventListener {
         mLastVerticalAccelerometer = 0.0;
         mFirstLaunchAccelerometer = true;
         mIsDeviceShifted = false;
-        mIsFireUIUpdateEvent = false;
+        mIsFireAlertUiUpdated = false;
+        mTimerEvent = UiEventTimerState.TIMER_STATE_IS_COUNT_DOWN_EVENT;
 
-        mTimerHandle = new TimerHandle(5000, 1000) {
+        mTimerHandle = new TimerHandle(ConfigPredefineEnvironment.getInstance().cpe_count_down_timer(),
+                                       ConfigPredefineEnvironment.getInstance().cpe_count_down_interval_timer()) {
             @Override
             public void processTimeOutEvent() {
-                if(mIsFireUIUpdateEvent == true){
-                    mIsFireUIUpdateEvent = false;
-                    processSensorIdleEvent();
+                mTimerEvent = UiEventTimerState.TIMER_STATE_IS_FIRE_ALERT_EVENT;
+                mTimerFireAlertEvent.onStart();
+            }
+
+            @Override
+            public void processOnTickEvent(long l) {
+                if(mTimerEvent == UiEventTimerState.TIMER_STATE_IS_DO_NOTHING_EVENT){
+                    updateTickUiEvent();
                 }
+            }
+        };
+
+        mTimerFireAlertEvent = new TimerHandle(ConfigPredefineEnvironment.getInstance().cpe_fire_alert_event_timer(),
+                                               ConfigPredefineEnvironment.getInstance().cpe_count_down_interval_timer()){
+
+            @Override
+            public void processTimeOutEvent() {
+                if(mIsFireAlertUiUpdated == true){
+                    processSensorIdleEvent();
+                    //timer expired, ui is reset
+                    mIsFireAlertUiUpdated = false;
+                }
+
+                //reset and to proceed count down event for user next touch.
+                mTimerEvent = UiEventTimerState.TIMER_STATE_IS_COUNT_DOWN_EVENT;
+            }
+
+            @Override
+            public void processOnTickEvent(long l) {
+
             }
         };
     }
@@ -88,7 +126,6 @@ public abstract class MotionSensorManager implements SensorEventListener {
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
 
-        //Log.d(TAG, "horizontal:"+sensorEvent.values[0]+" vertical:"+sensorEvent.values[1]+" height:"+sensorEvent.values[2]);
         mCurrentHorizonAccelerometer = sensorEvent.values[0];
         mCurrentVerticalAccelerometer = sensorEvent.values[1];
 
@@ -104,26 +141,27 @@ public abstract class MotionSensorManager implements SensorEventListener {
 
         if(Math.abs(diffHorizonAccelerometer) > 2.0 && Math.abs(diffVerticalAccelerometer) > 2.0 ||
           (Math.abs(diffHorizonAccelerometer) > 6.0) || (Math.abs(diffHorizonAccelerometer) > 6.0)){
-            //don't always update the UI until the timer is expired and released.
-            if(mIsFireUIUpdateEvent == false){
-                mIsFireUIUpdateEvent = true;
-                processSensorUIUpdateEvent();
-            }
 
+            if(mTimerEvent == UiEventTimerState.TIMER_STATE_IS_COUNT_DOWN_EVENT){
+                mTimerEvent = UiEventTimerState.TIMER_STATE_IS_DO_NOTHING_EVENT;
+                processUpdateCountDownUiEvent();
+                mTimerHandle.onStart();
+            }else if(mTimerEvent == UiEventTimerState.TIMER_STATE_IS_FIRE_ALERT_EVENT){
+                //don't always update the UI until the timer is expired and released.
+                if(mIsFireAlertUiUpdated == false){
+                    updateFireAlertUiEvent();
+                    mIsFireAlertUiUpdated = true;
+                }
+
+                if(mTimerFireAlertEvent.isTimerRunning() == true){
+                    //if timer launched before, reset timer and relaunch again
+                    mTimerFireAlertEvent.onCancel(false);
+                    mTimerFireAlertEvent.onStart();
+                }
+            }
             //update flag to tell caller of the flag about device is touch/play by users.
             mIsDeviceShifted = true;
-
-            if(mTimerHandle.isTimerRunning() == true){
-                //if timer launched before, reset timer and relaunch again
-                mTimerHandle.onCancel(false);
-                mTimerHandle.onStart();
-            }
-        }else{
-            if(mTimerHandle.isTimerRunning() == false){
-                mTimerHandle.onStart();
-            }
         }
-
         //update the last accelerometer value
         mLastHorizonAccelerometer = mCurrentHorizonAccelerometer;
         mLastVerticalAccelerometer = mCurrentVerticalAccelerometer;

@@ -21,14 +21,17 @@ enum DeviceStatus{
  * Created by PRN763 on 1/21/2018.
  */
 
+//TODO:unbind iBinder
+
+
 public class ServiceManager extends Service {
     private final static String TAG = "ServiceManager";
     private final IBinder serviceBinder =  new LocalServiceBinder();
     private DeviceSpeedDetector mDeviceSpeedDetector = null;
     private MotionSensorManager mMotionSensorManager = null;
     private boolean mIsServiceStarted = false;
-
-
+    private TimerHandle mCountDownTimer = null;
+    private TimerHandle mFireAlertTimer = null;
 
     @Nullable
     @Override
@@ -48,7 +51,7 @@ public class ServiceManager extends Service {
         mDeviceSpeedDetector = new DeviceSpeedDetector(getApplicationContext()) {
             @Override
             public void speedEventHandle(DeviceStatus var1) {
-
+                //TODO: uncomment
                 sendNotification(var1);
 
                 if(mMotionSensorManager != null){
@@ -62,24 +65,34 @@ public class ServiceManager extends Service {
                     }
                 }
             }
+
+            @Override
+            public void fireCarExceedLimitAlert() {
+                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT);
+            }
         };
 
         mMotionSensorManager = new MotionSensorManager(getApplicationContext()) {
             @Override
-            public void processSensorUIUpdateEvent() {
-                Log.e(TAG, "Users play phone while driving");
-                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS);
+            public void processUpdateCountDownUiEvent() {
+                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS);
             }
 
             @Override
             public void processSensorIdleEvent() {
                 sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_IDLE);
-                Log.e(TAG, "Users bertaubat no play phone already.");
+            }
+
+            @Override
+            public void updateTickUiEvent() {
+                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS);
+            }
+
+            @Override
+            public void updateFireAlertUiEvent() {
+                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS);
             }
         };
-
-        //TODO: rmv
-        //mMotionSensorManager.start();
     }
 
     private void sendMessageToActivity(String action, deviceUIUpdateState state) {
@@ -92,6 +105,14 @@ public class ServiceManager extends Service {
         return mIsServiceStarted;
     }
 
+    public void stop(){
+        Log.d(TAG, "Stop Service Manager!!!");
+        mMotionSensorManager.stop();
+        mIsServiceStarted = false;
+        mDeviceSpeedDetector.stop();
+
+        sendMessageToActivity("DeviceStatus", deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_STOP_TONE);
+    }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if(mDeviceSpeedDetector != null){
@@ -102,18 +123,31 @@ public class ServiceManager extends Service {
             //update service flag
             mIsServiceStarted = true;
         }
-        //TODO:add to display "stop" on activity button
-       //sendMessageToActivity("isServiceStarted", true);
         return super.onStartCommand(intent, flags, startId);
     }
+
 
     @Override
     public void onDestroy() {
         super.onDestroy();
-        mMotionSensorManager.stop();
-        mIsServiceStarted = false;
+    }
 
-        sendMessageToActivity("DeviceStatus", deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_STOP_TONE);
+    //TODO:to be remove
+    public void sendNotificationToBeRemove(int speed) {
+        NotificationCompat.Builder notify = new NotificationCompat.Builder(this);
+        notify.setSmallIcon(R.drawable.ic_directions_car_black_24dp);
+        notify.setContentTitle("Speed Debug Usage");
+        notify.setContentText("GPS SERVICE IS RUNNING");
+
+        Intent resultIntent = new Intent(this, MainActivity.class);
+
+        // Because clicking the notification opens a new ("special") activity, there's
+        // no need to create an artificial back stack.
+        PendingIntent resultPendingIntent = PendingIntent.getActivity(this,0, resultIntent, PendingIntent.FLAG_UPDATE_CURRENT);
+        notify.setContentIntent(resultPendingIntent);
+
+        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
+        nm.notify(1, notify.build());
     }
 
     public void sendNotification(DeviceStatus deviceStatus) {
@@ -123,7 +157,7 @@ public class ServiceManager extends Service {
 
         switch (deviceStatus){
             case DEVICE_IN_IDLE_MODE:
-                notify.setSmallIcon(R.drawable.ic_pan_tool_black_24dp);
+                notify.setSmallIcon(R.drawable.ic_cancel_black_24dp);
                 notify.setContentText("Device is Idle Mode...");
                 break;
             case DEVICE_IN_WALKING_MODE:

@@ -17,16 +17,20 @@ public abstract class TimerHandle extends CountDownTimer{
     }
 
     public abstract void processTimeOutEvent();
+    public abstract void processOnTickEvent(long l);
 
     @Override
     public void onFinish() {
         processTimeOutEvent();
-        Log.d(TAG, "onFinish");
+        //timer expired
+        if(mTimerState == true){
+            mTimerState = false;
+        }
     }
 
     @Override
     public void onTick(long l) {
-        Log.d(TAG, "Time:"+l);
+        processOnTickEvent(l);
     }
 
     public void onStart(){
@@ -40,11 +44,10 @@ public abstract class TimerHandle extends CountDownTimer{
         if(mTimerState == true){
             this.cancel();
             mTimerState = false;
+
             if(isUiUpdate == true){
                 processTimeOutEvent();
             }
-
-            Log.d(TAG, "Timer onCancel");
         }
     }
 

@@ -25,17 +25,22 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
-enum emojiType{
-    NO_EMOJI,
+enum imageType{
+    NO_IMAGE,
     ANGRY_EMOJI,
-    HAPPY_EMOJI
+    HAPPY_EMOJI,
+    COUNT_DOWN_1,
+    COUNT_DOWN_2,
+    COUNT_DOWN_3
 }
 
 enum deviceUIUpdateState{
     UPDATE_DEVICE_UI_INVALID,
+    UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS,
     UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS,
     UPDATE_DEVICE_UI_PHONE_IS_IDLE,
-    UPDATE_DEVICE_UI_PHONE_STOP_TONE
+    UPDATE_DEVICE_UI_PHONE_STOP_TONE,
+    UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT
 }
 
 public class MainActivity extends AppCompatActivity{
@@ -78,7 +83,6 @@ public class MainActivity extends AppCompatActivity{
         super.onResume();
         IntentFilter intentFilter = new IntentFilter();
         intentFilter.addAction("DeviceStatus");
-        //intentFilter.addAction("ServiceStarted");
         LocalBroadcastManager.getInstance(this).registerReceiver(BReceiver, intentFilter);
 
         Intent intent = new Intent(this, ServiceManager.class);
@@ -112,8 +116,6 @@ public class MainActivity extends AppCompatActivity{
             mServiceBinder = binder.getService();
             mIsBound = true;
 
-
-            Log.e(TAG,"mServiceBinder");
             if(startServiceBtn != null && mServiceBinder != null){
 
                 mIsServiceStarted = mServiceBinder.getButtonToggleState();
@@ -132,46 +134,71 @@ public class MainActivity extends AppCompatActivity{
             mIsBound = false;
         }
     };
-
+    static int cnt = 3;
     private BroadcastReceiver  BReceiver = new BroadcastReceiver(){
 
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
+
             if(action == "DeviceStatus"){
                 int uiUpdateState = intent.getIntExtra("state", -1);
 
                 switch(deviceUIUpdateState.values()[uiUpdateState]){
+                    case UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS:
+
+                        //TODO: very lousy design for display
+                        if(cnt == 3){
+                            displayCustomToast(imageType.COUNT_DOWN_3);
+                        }else if(cnt == 2){
+                            displayCustomToast(imageType.COUNT_DOWN_2);
+                        }else if(cnt == 1){
+                            displayCustomToast(imageType.COUNT_DOWN_1);
+                        }
+
+                        cnt -= 1;
+
+                        if(cnt == 0){
+                            cnt = 3;
+                        }
+
+                        break;
                     case UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS:
-                        displayCustomToast(emojiType.ANGRY_EMOJI);
-                        emitMaxWarmingAlertTone();
-                        processVibration(true);
+                        displayCustomToast(imageType.ANGRY_EMOJI);
+                        if(ConfigPredefineEnvironment.getInstance().cpe_enable_alert_tone()){
+                            emitMaxWarmingAlertTone(R.raw.warning_tone, true);
+                        }
+
+                        playVibration(true);
                         break;
                     case UPDATE_DEVICE_UI_PHONE_IS_IDLE:
-                        displayCustomToast(emojiType.HAPPY_EMOJI);
+                        displayCustomToast(imageType.HAPPY_EMOJI);
                         stopTone();
-                        processVibration(false);
+                        playVibration(false);
                         break;
                     case UPDATE_DEVICE_UI_PHONE_STOP_TONE:
                         stopTone();
+                        break;
+                    case UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT:
+                        emitMaxWarmingAlertTone(R.raw.exceed_speed_limit_tone, false);
                         break;
                 }
             }
         }
     };
 
-    private void emitMaxWarmingAlertTone(){
+    private void emitMaxWarmingAlertTone(int tone_id, boolean isLoop){
         if(mAudioManager != null){
             mCurrentVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
             mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0);
         }
 
-        playTone();
+        playTone(tone_id, isLoop);
     }
 
-    public void playTone(){
-        mMediaPlayer = MediaPlayer.create(this, R.raw.warning_tone);
-        mMediaPlayer.setLooping(true);
+    public void playTone(int tone_id, boolean isLoop){
+        mMediaPlayer = MediaPlayer.create(this, tone_id);
+        mMediaPlayer.setLooping(isLoop);
         mMediaPlayer.start();
     }
 
@@ -182,8 +209,10 @@ public class MainActivity extends AppCompatActivity{
         }
     }
 
-    public void processVibration(boolean isVibrate){
-        if(mVibrator != null && mVibrator.hasVibrator() == true){
+    public void playVibration(boolean isVibrate){
+        if((mVibrator != null) &&
+           (mVibrator.hasVibrator() == true) &&
+           (ConfigPredefineEnvironment.getInstance().cpe_enabled_vibrator())){
             if(isVibrate == true){
                 // Start without a delay
                 // Vibrate for 100 milliseconds
@@ -209,7 +238,12 @@ public class MainActivity extends AppCompatActivity{
                 Intent svcIntent = new Intent(MainActivity.this, ServiceManager.class);
 
                 if(mIsServiceStarted == true){
+                    Log.d(TAG, "Main Activity Stop Service");
                     stopService(svcIntent);
+
+                    if(mServiceBinder != null){
+                        mServiceBinder.stop();
+                    }
                     mIsServiceStarted = false;
                     startServiceBtn.setText("Start");
                 }else{
@@ -220,14 +254,12 @@ public class MainActivity extends AppCompatActivity{
                     //shutdown activity
                     finish();
                 }
-
-
             }
         };
         startServiceBtn.setOnClickListener(startServiceListener);
     }
 
-    public void displayCustomToast(emojiType type){
+    public void displayCustomToast(imageType type){
         int resId = 0;
         String emoText = "";
         LayoutInflater inflater = getLayoutInflater();
@@ -241,7 +273,19 @@ public class MainActivity extends AppCompatActivity{
                 resId = R.drawable.happy_emoji;
                 emoText = "Good Boy";
                 break;
-            case NO_EMOJI:
+            case COUNT_DOWN_1:
+                resId = R.drawable.count_down_1;
+                emoText = "Warning!!!";
+                break;
+            case COUNT_DOWN_2:
+                resId = R.drawable.count_down_2;
+                emoText = "Warning!!!";
+                break;
+            case COUNT_DOWN_3:
+                resId = R.drawable.count_down_3;
+                emoText = "Warning!!!";
+                break;
+            case NO_IMAGE:
             default:
                 break;
         }
@@ -257,6 +301,7 @@ public class MainActivity extends AppCompatActivity{
         toast.setDuration(Toast.LENGTH_SHORT);
         toast.setView(view);
         toast.show();
+
     }
 }
 
