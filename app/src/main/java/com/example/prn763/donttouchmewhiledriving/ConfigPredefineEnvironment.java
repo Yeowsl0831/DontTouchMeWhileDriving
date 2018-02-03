@@ -4,10 +4,6 @@ package com.example.prn763.donttouchmewhiledriving;
  * Created by PRN763 on 1/30/2018.
  */
 
-
-
-
-
 public class ConfigPredefineEnvironment {
     final static int CPE_COUNT_DOWN_TIMER_IN_MS = 3000;
     final static int CPE_COUNT_DOWN_INTERVAL_TIMER_IN_MS = 1000;

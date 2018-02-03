@@ -3,13 +3,20 @@ package com.example.prn763.donttouchmewhiledriving;
 import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.PixelFormat;
 import android.os.Binder;
 import android.os.IBinder;
 import android.support.annotation.Nullable;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.util.Log;
+import android.view.Gravity;
+import android.view.MotionEvent;
+import android.view.View;
+import android.view.WindowManager;
+import android.widget.LinearLayout;
 
 enum DeviceStatus{
     DEVICE_IN_IDLE_MODE,
@@ -30,8 +37,11 @@ public class ServiceManager extends Service {
     private DeviceSpeedDetector mDeviceSpeedDetector = null;
     private MotionSensorManager mMotionSensorManager = null;
     private boolean mIsServiceStarted = false;
-    private TimerHandle mCountDownTimer = null;
-    private TimerHandle mFireAlertTimer = null;
+    private int mCurrentMovementSpeed = 0;
+    private double mCurrentLatitude = 0.0;
+    private double mCurrentLongitude = 0.0;
+    private WindowManager mWindowManager;
+    private LinearLayout mDummyView;
 
     @Nullable
     @Override
@@ -49,9 +59,17 @@ public class ServiceManager extends Service {
     public void onCreate() {
         super.onCreate();
         mDeviceSpeedDetector = new DeviceSpeedDetector(getApplicationContext()) {
+
+
+            @Override
+            public void updateService(int speed, double latitude, double longitude) {
+                mCurrentMovementSpeed = speed;
+                mCurrentLatitude = latitude;
+                mCurrentLongitude = longitude;
+            }
+
             @Override
             public void speedEventHandle(DeviceStatus var1) {
-                //TODO: uncomment
                 sendNotification(var1);
 
                 if(mMotionSensorManager != null){
@@ -69,6 +87,15 @@ public class ServiceManager extends Service {
             @Override
             public void fireCarExceedLimitAlert() {
                 sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT);
+
+                String emailContent = "Your DontTouchMeWhileDriving app caught your status as below:\n" +
+                                      "Reason: Exceed Speed Limit\n" +
+                                      "Speed: "+mCurrentMovementSpeed+"km'\'h\n" +
+                                      "Location: "+mCurrentLatitude+"(Latitude) Longitude: "+mCurrentLongitude+"(Longitude)";
+                new EmailManager().sendEmail(deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS,
+                                            "yslin91@hotmail.com",
+                                            "DontTouchMeWhileDriving : Driving Report!",
+                                             emailContent);
             }
         };
 
@@ -91,8 +118,20 @@ public class ServiceManager extends Service {
             @Override
             public void updateFireAlertUiEvent() {
                 sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS);
+
+                String emailContent = "Your DontTouchMeWhileDriving app caught your status as below:\n" +
+                                      "Driving with Phone: Yes\n" +
+                                      "Speed: "+mCurrentMovementSpeed+"km'\'h\n" +
+                                      "Location: "+mCurrentLatitude+"(Latitude) Longitude: "+mCurrentLongitude+"(Longitude)";
+                new EmailManager().sendEmail(deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS,
+                                                     "yslin91@hotmail.com",
+                                                     "DontTouchMeWhileDriving : Driving Report!",
+                                                      emailContent);
             }
         };
+
+        //create the dummy and transparent windows for touch event
+        createWindowsForOnTouchEvent();
     }
 
     private void sendMessageToActivity(String action, deviceUIUpdateState state) {
@@ -111,6 +150,16 @@ public class ServiceManager extends Service {
         mIsServiceStarted = false;
         mDeviceSpeedDetector.stop();
 
+        //unregister touch listener
+        if(mDummyView != null){
+            mDummyView.setOnTouchListener(null);
+            mDummyView = null;
+        }
+
+        if(mWindowManager != null){
+            mWindowManager = null;
+        }
+
         sendMessageToActivity("DeviceStatus", deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_STOP_TONE);
     }
     @Override
@@ -123,6 +172,9 @@ public class ServiceManager extends Service {
             //update service flag
             mIsServiceStarted = true;
         }
+        //added dummy view for detect touch event when activity is closed.
+        addViewOnService();
+
         return super.onStartCommand(intent, flags, startId);
     }
 
@@ -130,24 +182,6 @@ public class ServiceManager extends Service {
     @Override
     public void onDestroy() {
         super.onDestroy();
-    }
-
-    //TODO:to be remove
-    public void sendNotificationToBeRemove(int speed) {
-        NotificationCompat.Builder notify = new NotificationCompat.Builder(this);
-        notify.setSmallIcon(R.drawable.ic_directions_car_black_24dp);
-        notify.setContentTitle("Speed Debug Usage");
-        notify.setContentText("GPS SERVICE IS RUNNING");
-
-        Intent resultIntent = new Intent(this, MainActivity.class);
-
-        // Because clicking the notification opens a new ("special") activity, there's
-        // no need to create an artificial back stack.
-        PendingIntent resultPendingIntent = PendingIntent.getActivity(this,0, resultIntent, PendingIntent.FLAG_UPDATE_CURRENT);
-        notify.setContentIntent(resultPendingIntent);
-
-        NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
-        nm.notify(1, notify.build());
     }
 
     public void sendNotification(DeviceStatus deviceStatus) {
@@ -185,4 +219,43 @@ public class ServiceManager extends Service {
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         nm.notify(1, notify.build());
     }
+
+    //TODO:if possible move to MotionSensorManager class
+    public void createWindowsForOnTouchEvent(){
+        mWindowManager = (WindowManager) getApplicationContext().getSystemService(Context.WINDOW_SERVICE);
+        mDummyView = new LinearLayout(getApplicationContext());
+
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(1, WindowManager.LayoutParams.MATCH_PARENT);
+        mDummyView.setLayoutParams(params);
+
+        View.OnTouchListener otl = new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                Log.e(TAG, "Service onTouch");
+                if(mMotionSensorManager != null){
+                    mMotionSensorManager.setDeviceIsOnTouch(true);
+                }
+                return false;
+            }
+        };
+        mDummyView.setOnTouchListener(otl);
+    }
+
+    //TODO:if possible move to MotionSensorManager class
+    public void addViewOnService(){
+        WindowManager.LayoutParams params = new WindowManager.LayoutParams(1,
+                                                                           1,
+                                                                            WindowManager.LayoutParams.TYPE_PHONE,
+                                                                           WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE |
+                                                                            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL |
+                                                                            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
+                                                                            PixelFormat.TRANSPARENT);
+        params.gravity = Gravity.LEFT | Gravity.TOP;
+
+        if(mWindowManager != null && mDummyView != null){
+            mWindowManager.addView(mDummyView, params);
+        }
+    }
+
+
 }

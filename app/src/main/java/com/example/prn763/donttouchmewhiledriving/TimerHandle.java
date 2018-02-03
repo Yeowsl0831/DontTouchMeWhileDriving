@@ -1,7 +1,6 @@
 package com.example.prn763.donttouchmewhiledriving;
 
 import android.os.CountDownTimer;
-import android.util.Log;
 
 /**
  * Created by PRN763 on 1/22/2018.

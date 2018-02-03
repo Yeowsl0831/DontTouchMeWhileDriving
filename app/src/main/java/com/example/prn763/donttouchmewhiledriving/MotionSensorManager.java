@@ -39,13 +39,17 @@ public abstract class MotionSensorManager implements SensorEventListener {
     private double mCurrentHorizonAccelerometer;
     private double mLastHorizonAccelerometer;
     private double mCurrentVerticalAccelerometer;
+    private double mCurrentAltitudeAccelerometer;
     private double mLastVerticalAccelerometer;
+    private double mLastAltitudeAccelerometer;
     private boolean mFirstLaunchAccelerometer;
-    private boolean mIsDeviceShifted;
     private boolean mIsFireAlertUiUpdated;
+    private boolean mDeviceIsOnTouch;
     private UiEventTimerState mTimerEvent;
     private TimerHandle mTimerHandle;
     private TimerHandle mTimerFireAlertEvent;
+
+
 
     MotionSensorManager(Context contxt){
         context = contxt;
@@ -54,15 +58,19 @@ public abstract class MotionSensorManager implements SensorEventListener {
         mLastHorizonAccelerometer = 0.0;
         mCurrentVerticalAccelerometer = 0.0;
         mLastVerticalAccelerometer = 0.0;
+        mCurrentAltitudeAccelerometer = 0.0;
+        mLastAltitudeAccelerometer = 0.0;
         mFirstLaunchAccelerometer = true;
-        mIsDeviceShifted = false;
         mIsFireAlertUiUpdated = false;
+        mDeviceIsOnTouch = false;
         mTimerEvent = UiEventTimerState.TIMER_STATE_IS_COUNT_DOWN_EVENT;
 
         mTimerHandle = new TimerHandle(ConfigPredefineEnvironment.getInstance().cpe_count_down_timer(),
                                        ConfigPredefineEnvironment.getInstance().cpe_count_down_interval_timer()) {
             @Override
             public void processTimeOutEvent() {
+                //only allowed to send a warning when after 3secs count down
+                mDeviceIsOnTouch = false;
                 mTimerEvent = UiEventTimerState.TIMER_STATE_IS_FIRE_ALERT_EVENT;
                 mTimerFireAlertEvent.onStart();
             }
@@ -85,7 +93,8 @@ public abstract class MotionSensorManager implements SensorEventListener {
                     //timer expired, ui is reset
                     mIsFireAlertUiUpdated = false;
                 }
-
+                //reset the touch event input
+                mDeviceIsOnTouch = false;
                 //reset and to proceed count down event for user next touch.
                 mTimerEvent = UiEventTimerState.TIMER_STATE_IS_COUNT_DOWN_EVENT;
             }
@@ -117,50 +126,58 @@ public abstract class MotionSensorManager implements SensorEventListener {
         if(mTimerHandle.isTimerRunning() == true){
             mTimerHandle.onCancel(true);
         }
-    }
+/*
+        //TODO: investigate whether need to remove the object?/ previously remove caused the application clash.
+        if(mTimerHandle != null){
+            mTimerHandle = null;
+        }
 
-    public boolean isDeviceTouchByUser(){
-        return mIsDeviceShifted;
+        if(mTimerFireAlertEvent != null){
+            mTimerFireAlertEvent = null;
+        }*/
     }
 
     @Override
     public void onSensorChanged(SensorEvent sensorEvent) {
-
         mCurrentHorizonAccelerometer = sensorEvent.values[0];
         mCurrentVerticalAccelerometer = sensorEvent.values[1];
+        mCurrentAltitudeAccelerometer = sensorEvent.values[2];
 
         //for the 1st time launch
         if(mFirstLaunchAccelerometer == true){
             mFirstLaunchAccelerometer = false;
             mLastHorizonAccelerometer = mCurrentHorizonAccelerometer;
             mLastVerticalAccelerometer = mCurrentVerticalAccelerometer;
+            mLastAltitudeAccelerometer = mCurrentAltitudeAccelerometer;
         }
+
 
         double diffHorizonAccelerometer = mCurrentHorizonAccelerometer - mLastHorizonAccelerometer;
         double diffVerticalAccelerometer = mCurrentVerticalAccelerometer - mLastVerticalAccelerometer;
-
-        if(Math.abs(diffHorizonAccelerometer) > 2.0 && Math.abs(diffVerticalAccelerometer) > 2.0 ||
-          (Math.abs(diffHorizonAccelerometer) > 6.0) || (Math.abs(diffHorizonAccelerometer) > 6.0)){
-
+        double diffAltitudeAccelerometer = mCurrentAltitudeAccelerometer - mLastAltitudeAccelerometer;
+        Log.e(TAG, "Horion:"+diffHorizonAccelerometer/*sensorEvent.values[0]*/+" Ver:"+diffVerticalAccelerometer/*sensorEvent.values[1]*/+" Alt:"+diffAltitudeAccelerometer/*sensorEvent.values[2]*/);
+        if(Math.abs(diffHorizonAccelerometer) > 0.5 ||
+           Math.abs(diffVerticalAccelerometer) > 0.5 ||
+           Math.abs(diffAltitudeAccelerometer) > 2.0){
             if(mTimerEvent == UiEventTimerState.TIMER_STATE_IS_COUNT_DOWN_EVENT){
                 mTimerEvent = UiEventTimerState.TIMER_STATE_IS_DO_NOTHING_EVENT;
                 processUpdateCountDownUiEvent();
                 mTimerHandle.onStart();
-            }else if(mTimerEvent == UiEventTimerState.TIMER_STATE_IS_FIRE_ALERT_EVENT){
-                //don't always update the UI until the timer is expired and released.
-                if(mIsFireAlertUiUpdated == false){
-                    updateFireAlertUiEvent();
-                    mIsFireAlertUiUpdated = true;
-                }
-
-                if(mTimerFireAlertEvent.isTimerRunning() == true){
-                    //if timer launched before, reset timer and relaunch again
-                    mTimerFireAlertEvent.onCancel(false);
-                    mTimerFireAlertEvent.onStart();
-                }
             }
-            //update flag to tell caller of the flag about device is touch/play by users.
-            mIsDeviceShifted = true;
+        }
+
+        if((mTimerEvent == UiEventTimerState.TIMER_STATE_IS_FIRE_ALERT_EVENT) &&
+           (mIsFireAlertUiUpdated == false) &&
+           (mDeviceIsOnTouch == true)){
+            //restart the timer
+            if(mTimerFireAlertEvent.isTimerRunning() == true){
+                //if timer launched before, reset timer and relaunch again
+                mTimerFireAlertEvent.onCancel(false);
+                mTimerFireAlertEvent.onStart();
+            }
+
+            updateFireAlertUiEvent();
+            mIsFireAlertUiUpdated = true;
         }
         //update the last accelerometer value
         mLastHorizonAccelerometer = mCurrentHorizonAccelerometer;
@@ -170,5 +187,9 @@ public abstract class MotionSensorManager implements SensorEventListener {
     @Override
     public void onAccuracyChanged(Sensor sensor, int i) {
 
+    }
+
+    public void setDeviceIsOnTouch(boolean isTouch){
+        mDeviceIsOnTouch = isTouch;
     }
 }

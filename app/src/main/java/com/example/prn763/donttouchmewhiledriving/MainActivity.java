@@ -31,7 +31,8 @@ enum imageType{
     HAPPY_EMOJI,
     COUNT_DOWN_1,
     COUNT_DOWN_2,
-    COUNT_DOWN_3
+    COUNT_DOWN_3,
+    SPEED_LIMIT
 }
 
 enum deviceUIUpdateState{
@@ -54,10 +55,6 @@ public class MainActivity extends AppCompatActivity{
     private boolean mIsServiceStarted;
     private boolean mIsBound;
 
-
-    //TODO:rmv
-    private TextView tv;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -68,7 +65,6 @@ public class MainActivity extends AppCompatActivity{
         mAudioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         mVibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
 
-        tv = findViewById(R.id.deviceStatus);
         //setup start button
         configureStartServiceButton();
     }
@@ -134,6 +130,8 @@ public class MainActivity extends AppCompatActivity{
             mIsBound = false;
         }
     };
+
+    //TODO:to be remove so lousy code design
     static int cnt = 3;
     private BroadcastReceiver  BReceiver = new BroadcastReceiver(){
 
@@ -180,6 +178,7 @@ public class MainActivity extends AppCompatActivity{
                         stopTone();
                         break;
                     case UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT:
+                        displayCustomToast(imageType.SPEED_LIMIT);
                         emitMaxWarmingAlertTone(R.raw.exceed_speed_limit_tone, false);
                         break;
                 }
@@ -235,18 +234,21 @@ public class MainActivity extends AppCompatActivity{
         View.OnClickListener startServiceListener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
                 Intent svcIntent = new Intent(MainActivity.this, ServiceManager.class);
 
-                if(mIsServiceStarted == true){
+                if (mIsServiceStarted == true) {
                     Log.d(TAG, "Main Activity Stop Service");
                     stopService(svcIntent);
 
-                    if(mServiceBinder != null){
+                    if (mServiceBinder != null) {
+                        //TODO:Application crashed found here, maybe need to do some unbinding stuff.
                         mServiceBinder.stop();
                     }
+
                     mIsServiceStarted = false;
                     startServiceBtn.setText("Start");
-                }else{
+                } else {
                     startService(svcIntent);
                     mIsServiceStarted = true;
                     startServiceBtn.setText("Stop");
@@ -254,54 +256,51 @@ public class MainActivity extends AppCompatActivity{
                     //shutdown activity
                     finish();
                 }
+
+
             }
         };
         startServiceBtn.setOnClickListener(startServiceListener);
     }
 
+
+
     public void displayCustomToast(imageType type){
         int resId = 0;
-        String emoText = "";
         LayoutInflater inflater = getLayoutInflater();
 
         switch (type){
             case ANGRY_EMOJI:
-                resId = R.drawable.angry_emoji;
-                emoText = "Args, No Phone";
-                break;
             case HAPPY_EMOJI:
-                resId = R.drawable.happy_emoji;
-                emoText = "Good Boy";
+                resId = R.drawable.no_phone;
                 break;
             case COUNT_DOWN_1:
                 resId = R.drawable.count_down_1;
-                emoText = "Warning!!!";
                 break;
             case COUNT_DOWN_2:
                 resId = R.drawable.count_down_2;
-                emoText = "Warning!!!";
                 break;
             case COUNT_DOWN_3:
                 resId = R.drawable.count_down_3;
-                emoText = "Warning!!!";
+                break;
+            case SPEED_LIMIT:
+                resId = R.drawable.speed_limit_logo;
                 break;
             case NO_IMAGE:
             default:
+                resId = R.drawable.error_logo;
                 break;
         }
         View view = inflater.inflate(R.layout.custom_countdown_toast, (ViewGroup) findViewById(R.id.toast_root_layout));
 
         ImageView toastImage = view.findViewById(R.id.customToastImage);
         toastImage.setImageResource(resId);
-        TextView emojiTextView = view.findViewById(R.id.emojiText);
-        emojiTextView.setText(emoText);
 
         Toast toast = new Toast(getApplicationContext());
-        toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
+        toast.setGravity(Gravity.TOP|Gravity.RIGHT, 0, 0);
         toast.setDuration(Toast.LENGTH_SHORT);
         toast.setView(view);
         toast.show();
-
     }
 }
 

@@ -8,25 +8,12 @@
 
     <ImageView
         android:id="@+id/customToastImage"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentStart="true"
+        android:layout_width="60dp"
+        android:layout_height="60dp"
         android:layout_alignParentTop="true"
-        android:layout_marginLeft="18dp"
-        android:layout_marginStart="18dp"
-        android:layout_marginTop="81dp"
+        android:layout_alignParentRight="true"
+        android:layout_marginRight="10px"
+        android:foregroundGravity="right"
         app:srcCompat="@drawable/angry_emoji" />
 
-    <TextView
-        android:id="@+id/emojiText"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignTop="@+id/customToastImage"
-        android:layout_marginLeft="12dp"
-        android:layout_marginStart="12dp"
-        android:layout_toEndOf="@+id/customToastImage"
-        android:layout_toRightOf="@+id/customToastImage"
-        android:text="No Phone"
-        android:textSize="36dp" />
 </RelativeLayout>

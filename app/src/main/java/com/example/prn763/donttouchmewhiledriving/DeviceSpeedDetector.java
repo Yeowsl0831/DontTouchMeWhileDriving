@@ -1,17 +1,11 @@
 package com.example.prn763.donttouchmewhiledriving;
 
 import android.content.Context;
-import android.content.Intent;
 import android.location.Criteria;
-import android.location.GnssStatus;
-import android.location.GpsStatus;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
-import android.location.LocationProvider;
-import android.media.MediaPlayer;
 import android.os.Bundle;
-import android.provider.Settings;
 import android.util.Log;
 
 
@@ -28,6 +22,7 @@ public abstract class DeviceSpeedDetector implements LocationListener{
     private LocationManager mLocationManager;
     private boolean mIsFireCarExceedLimitAlert;
 
+    public abstract void updateService(int speed, double latitude, double longitude);
     public abstract void speedEventHandle(DeviceStatus var1);
     public abstract void fireCarExceedLimitAlert();
 
@@ -74,10 +69,9 @@ public abstract class DeviceSpeedDetector implements LocationListener{
     public void onLocationChanged(Location location) {
         double timeElapsed = 0;
         double distance = 0;
-        Log.d(TAG, "onLocationChanged");
+
         if(location != null){
             if(lastLocation != null){
-                Log.d(TAG, "lastLocation not null");
                 //get time elapsed in sec
                 timeElapsed = (location.getTime() - lastLocation.getTime())/(1000);
                 //get distance elapsed in m
@@ -86,27 +80,27 @@ public abstract class DeviceSpeedDetector implements LocationListener{
                 lastLocation = location;
             }
             else{
-                Log.d(TAG, "lastLocation is null");
                 lastLocation = location;
             }
             int speed = (int)((distance/timeElapsed)*(18/5));
 
+            updateService(speed, location.getLatitude(), location.getLongitude());
 
-            Log.d(TAG, "Speed: "+speed+"km/h");
+
             //get last device status
             mLastDeviceStatus = mDeviceStatus;
 
-            if(speed >= 30){
+            if((speed >= 30) && (speed < 200)){
                 mDeviceStatus = DeviceStatus.DEVICE_IN_DRIVING_MODE;
-            }else if(speed < 30 && speed > 0){
+            }else if((speed < 30) && (speed > 0)){
                 mDeviceStatus = DeviceStatus.DEVICE_IN_WALKING_MODE;
             }else{
                 mDeviceStatus = DeviceStatus.DEVICE_IN_IDLE_MODE;
             }
 
-            if((speed > ConfigPredefineEnvironment.getInstance().cpe_car_speed_limit()) &&
+            if((speed > ConfigPredefineEnvironment.getInstance().cpe_car_speed_limit()) && (speed < 200) &&
                (ConfigPredefineEnvironment.getInstance().cpe_car_speed_limit() != 0) &&
-                    (mIsFireCarExceedLimitAlert == false)){
+               (mIsFireCarExceedLimitAlert == false)){
                 fireCarExceedLimitAlert();
                 mIsFireCarExceedLimitAlert = true;
             } else if(speed < ConfigPredefineEnvironment.getInstance().cpe_car_speed_limit()){
