@@ -90,12 +90,14 @@ public class EmailManager extends AsyncTask<Void, Void, Void>{
     }
 
     public void sendEmail(deviceUIUpdateState deviceUiSate, String email, String subject, String message){
-        this.mEmail = email;
-        this.mSubject = subject;
-        this.mMessage = message;
+        if(ConfigPredefineEnvironment.getInstance().cpe_enable_email_notification()){
+            this.mEmail = email;
+            this.mSubject = subject;
+            this.mMessage = message;
 
-        //Email manager Executing to send email
-        this.execute();
+            //Email manager Executing to send email
+            this.execute();
+        }
     }
 }
 

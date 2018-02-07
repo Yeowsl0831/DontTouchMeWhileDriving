@@ -155,7 +155,7 @@ public abstract class MotionSensorManager implements SensorEventListener {
         double diffHorizonAccelerometer = mCurrentHorizonAccelerometer - mLastHorizonAccelerometer;
         double diffVerticalAccelerometer = mCurrentVerticalAccelerometer - mLastVerticalAccelerometer;
         double diffAltitudeAccelerometer = mCurrentAltitudeAccelerometer - mLastAltitudeAccelerometer;
-        Log.e(TAG, "Horion:"+diffHorizonAccelerometer/*sensorEvent.values[0]*/+" Ver:"+diffVerticalAccelerometer/*sensorEvent.values[1]*/+" Alt:"+diffAltitudeAccelerometer/*sensorEvent.values[2]*/);
+
         if(Math.abs(diffHorizonAccelerometer) > 0.5 ||
            Math.abs(diffVerticalAccelerometer) > 0.5 ||
            Math.abs(diffAltitudeAccelerometer) > 2.0){

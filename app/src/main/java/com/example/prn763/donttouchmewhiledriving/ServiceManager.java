@@ -59,8 +59,6 @@ public class ServiceManager extends Service {
     public void onCreate() {
         super.onCreate();
         mDeviceSpeedDetector = new DeviceSpeedDetector(getApplicationContext()) {
-
-
             @Override
             public void updateService(int speed, double latitude, double longitude) {
                 mCurrentMovementSpeed = speed;
@@ -102,7 +100,8 @@ public class ServiceManager extends Service {
         mMotionSensorManager = new MotionSensorManager(getApplicationContext()) {
             @Override
             public void processUpdateCountDownUiEvent() {
-                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS);
+                //Log.d(TAG, "Start Count Down Event");
+                //sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS);
             }
 
             @Override
@@ -129,7 +128,7 @@ public class ServiceManager extends Service {
                                                       emailContent);
             }
         };
-
+        
         //create the dummy and transparent windows for touch event
         createWindowsForOnTouchEvent();
     }

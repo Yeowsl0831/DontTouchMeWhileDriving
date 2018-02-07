@@ -1,14 +1,20 @@
 package com.example.prn763.donttouchmewhiledriving;
 
+import android.util.Log;
+
 /**
  * Created by PRN763 on 1/30/2018.
  */
 
 public class ConfigPredefineEnvironment {
-    final static int CPE_COUNT_DOWN_TIMER_IN_MS = 3000;
+    final static int CPE_COUNT_DOWN_TIMER_IN_MS = 3050;
     final static int CPE_COUNT_DOWN_INTERVAL_TIMER_IN_MS = 1000;
     final static int CPE_FIRE_ALERT_EVENT_TIMER_IN_MS = 6000;
-    final static int CPE_CAR_SPEED_LIMIT = 60;
+
+    private boolean mEnabledVibrator = false;
+    private boolean mEnabledAlertTone = false;
+    private boolean mEnabledEmailNotification = false;
+    private int mSpeedLimitNotification = 1000;
 
 
 
@@ -38,14 +44,33 @@ public class ConfigPredefineEnvironment {
     }
 
     public boolean cpe_enabled_vibrator(){
-        return true;
+        return mEnabledVibrator;
     }
 
     public boolean cpe_enable_alert_tone(){
-        return true;
+        return mEnabledAlertTone;
     }
 
+    public boolean cpe_enable_email_notification(){return mEnabledEmailNotification; }
+
     public int cpe_car_speed_limit(){
-        return CPE_CAR_SPEED_LIMIT;
+        return mSpeedLimitNotification;
+    }
+
+    public void cpe_set_enabled_vibrator(boolean isEnabled){
+        mEnabledVibrator = isEnabled;
+    }
+
+    public void cpe_set_enabled_alert_tone(boolean isEnabled){
+        mEnabledAlertTone = isEnabled;
+    }
+
+    public void cpe_set_enabled_email_notification(boolean isEnabled){
+        mEnabledEmailNotification = isEnabled;
+    }
+
+    public void cpe_set_speed_limit(int speed){
+        Log.d("CPE", "Speed:"+speed);
+        mSpeedLimitNotification = speed;
     }
 }

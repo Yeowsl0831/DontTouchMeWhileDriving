@@ -1,29 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/main_background"
     tools:context="com.example.prn763.donttouchmewhiledriving.MainActivity">
 
-
-        <Button
-            android:id="@+id/startButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/start"
-            android:layout_alignParentBottom="true"
-            android:layout_gravity="bottom"/>
-
-        <TextView
-            android:id="@+id/deviceStatus"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center"
+        <ImageButton
+            android:id="@+id/setting_button"
+            android:layout_width="80dp"
+            android:layout_height="80dp"
+            android:layout_alignParentEnd="true"
+            android:layout_alignParentRight="true"
             android:layout_alignParentTop="true"
+            android:background="@color/transparent"
+            app:srcCompat="@drawable/setting_icon"/>
+
+        <ImageButton
+            android:id="@+id/power_button"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@color/transparent"
+            android:foregroundGravity="center_vertical"
+            android:layout_alignParentBottom="true"
+            android:layout_marginBottom="20dp"
             android:layout_centerHorizontal="true"
-            android:layout_marginTop="203dp"
-            android:text="TextView"
-            android:textSize="30dp" />
-
-
+            android:layout_marginTop="42dp"
+            app:srcCompat="@drawable/stop_icon" />
 </RelativeLayout>

@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
+import android.database.Cursor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
 import android.os.Bundle;
@@ -19,7 +20,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -46,7 +47,8 @@ enum deviceUIUpdateState{
 
 public class MainActivity extends AppCompatActivity{
     final static String TAG = "MainActivity";
-    private Button startServiceBtn;
+    private ImageButton mPowerButton;
+    private ImageButton mSettingButton;
     private int mCurrentVolume;
     private MediaPlayer mMediaPlayer;
     private AudioManager mAudioManager;
@@ -54,11 +56,17 @@ public class MainActivity extends AppCompatActivity{
     private ServiceManager mServiceBinder;
     private boolean mIsServiceStarted;
     private boolean mIsBound;
+    private ImageView mCustomToastImageView;
+    private Toast mCustomToast;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        setTitle("Home");
+
+        //load setting
+        loadSettingConfiguration();
 
         //initialize
         mCurrentVolume = 0;
@@ -67,6 +75,27 @@ public class MainActivity extends AppCompatActivity{
 
         //setup start button
         configureStartServiceButton();
+        //setup setting button
+        configureSettingButton();
+        //configure custom toast layout
+        configureCustomToastMessage();
+    }
+
+    private void loadSettingConfiguration(){
+        Cursor dbCursor = DBHandler.getInstance(this).getDataBase();
+
+        while (dbCursor.moveToNext())
+        {
+            int emailSetting = dbCursor.getInt(1);
+            int toneSetting = dbCursor.getInt(2);
+            int vibrationSetting = dbCursor.getInt(3);
+            int speedSetting = dbCursor.getInt(4);
+            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_email_notification(emailSetting==1?true:false);
+            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_alert_tone(toneSetting==1?true:false);
+            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_vibrator(vibrationSetting==1?true:false);
+            ConfigPredefineEnvironment.getInstance().cpe_set_speed_limit(speedSetting);
+        }
+        dbCursor.close();
     }
 
     @Override
@@ -102,7 +131,6 @@ public class MainActivity extends AppCompatActivity{
         stopTone();
     }
 
-    /** Defines callbacks for service binding, passed to bindService() */
     private ServiceConnection mConnection = new ServiceConnection() {
 
         @Override
@@ -112,15 +140,15 @@ public class MainActivity extends AppCompatActivity{
             mServiceBinder = binder.getService();
             mIsBound = true;
 
-            if(startServiceBtn != null && mServiceBinder != null){
+            if(mPowerButton != null && mServiceBinder != null){
 
                 mIsServiceStarted = mServiceBinder.getButtonToggleState();
 
                 if(mIsServiceStarted == true){
-                    startServiceBtn.setText("Stop");
+                    mPowerButton.setImageResource(R.drawable.start_icon);
                 }
                 else{
-                    startServiceBtn.setText("Start");
+                    mPowerButton.setImageResource(R.drawable.stop_icon);
                 }
             }
         }
@@ -144,7 +172,6 @@ public class MainActivity extends AppCompatActivity{
 
                 switch(deviceUIUpdateState.values()[uiUpdateState]){
                     case UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS:
-
                         //TODO: very lousy design for display
                         if(cnt == 3){
                             displayCustomToast(imageType.COUNT_DOWN_3);
@@ -187,24 +214,29 @@ public class MainActivity extends AppCompatActivity{
     };
 
     private void emitMaxWarmingAlertTone(int tone_id, boolean isLoop){
-        if(mAudioManager != null){
-            mCurrentVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
-            mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0);
+        if(ConfigPredefineEnvironment.getInstance().cpe_enable_alert_tone()){
+            if(mAudioManager != null){
+                mCurrentVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
+                mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0);
+            }
+            playTone(tone_id, isLoop);
         }
-
-        playTone(tone_id, isLoop);
     }
 
     public void playTone(int tone_id, boolean isLoop){
+        stopTone();
         mMediaPlayer = MediaPlayer.create(this, tone_id);
         mMediaPlayer.setLooping(isLoop);
         mMediaPlayer.start();
     }
 
     public void stopTone(){
-        if(mMediaPlayer != null && mMediaPlayer.isPlaying() == true){
-            mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mCurrentVolume, 0);
+        //mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mCurrentVolume, 0);
+
+        if(mMediaPlayer != null){
             mMediaPlayer.stop();
+            mMediaPlayer.release();
+            mMediaPlayer = null;
         }
     }
 
@@ -230,7 +262,7 @@ public class MainActivity extends AppCompatActivity{
 
     private void configureStartServiceButton(){
         //start the service
-        startServiceBtn = findViewById(R.id.startButton);
+        mPowerButton = findViewById(R.id.power_button);
         View.OnClickListener startServiceListener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -247,27 +279,47 @@ public class MainActivity extends AppCompatActivity{
                     }
 
                     mIsServiceStarted = false;
-                    startServiceBtn.setText("Start");
+                    mPowerButton.setImageResource(R.drawable.stop_icon);
+                    Toast.makeText(getApplicationContext(), "Power Off Engine", Toast.LENGTH_SHORT).show();
                 } else {
                     startService(svcIntent);
                     mIsServiceStarted = true;
-                    startServiceBtn.setText("Stop");
+                    mPowerButton.setImageResource(R.drawable.start_icon);
+                    Toast.makeText(getApplicationContext(), "Power On Engine", Toast.LENGTH_SHORT).show();
 
                     //shutdown activity
                     finish();
                 }
-
-
             }
         };
-        startServiceBtn.setOnClickListener(startServiceListener);
+        mPowerButton.setOnClickListener(startServiceListener);
     }
 
+    private void configureSettingButton(){
+        mSettingButton = findViewById(R.id.setting_button);
+        View.OnClickListener startServiceListener = new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(MainActivity.this, Setting.class);
+                startActivity(intent);
+            }
+        };
+        mSettingButton.setOnClickListener(startServiceListener);
+    }
 
+    public void configureCustomToastMessage(){
+        View view = getLayoutInflater().inflate(R.layout.custom_countdown_toast, (ViewGroup) findViewById(R.id.toast_root_layout));
+
+        mCustomToastImageView = view.findViewById(R.id.customToastImage);
+
+        mCustomToast = new Toast(getApplicationContext());
+        mCustomToast.setGravity(Gravity.TOP|Gravity.RIGHT, 0, 0);
+        mCustomToast.setDuration(Toast.LENGTH_SHORT);
+        mCustomToast.setView(view);
+    }
 
     public void displayCustomToast(imageType type){
         int resId = 0;
-        LayoutInflater inflater = getLayoutInflater();
 
         switch (type){
             case ANGRY_EMOJI:
@@ -288,19 +340,12 @@ public class MainActivity extends AppCompatActivity{
                 break;
             case NO_IMAGE:
             default:
-                resId = R.drawable.error_logo;
                 break;
         }
-        View view = inflater.inflate(R.layout.custom_countdown_toast, (ViewGroup) findViewById(R.id.toast_root_layout));
 
-        ImageView toastImage = view.findViewById(R.id.customToastImage);
-        toastImage.setImageResource(resId);
+        mCustomToastImageView.setImageResource(resId);
 
-        Toast toast = new Toast(getApplicationContext());
-        toast.setGravity(Gravity.TOP|Gravity.RIGHT, 0, 0);
-        toast.setDuration(Toast.LENGTH_SHORT);
-        toast.setView(view);
-        toast.show();
+        mCustomToast.show();
     }
 }
 

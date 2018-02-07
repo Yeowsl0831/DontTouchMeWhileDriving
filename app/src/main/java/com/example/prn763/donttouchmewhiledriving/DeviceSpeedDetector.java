@@ -32,7 +32,6 @@ public abstract class DeviceSpeedDetector implements LocationListener{
         mDeviceStatus = DeviceStatus.DEVICE_IN_IDLE_MODE;
         mLastDeviceStatus = DeviceStatus.DEVICE_IN_IDLE_MODE;
         mIsFireCarExceedLimitAlert = false;
-
     }
 
     public void start(){
@@ -47,11 +46,17 @@ public abstract class DeviceSpeedDetector implements LocationListener{
 
         Criteria mFineCriteria = new Criteria();
         mFineCriteria.setAccuracy(Criteria.ACCURACY_FINE);
+        mFineCriteria.setPowerRequirement(Criteria.POWER_HIGH);
+        mFineCriteria.setAltitudeRequired(false);
+        mFineCriteria.setSpeedRequired(true);
         mFineCriteria.setHorizontalAccuracy(Criteria.ACCURACY_HIGH);
+        mFineCriteria.setVerticalAccuracy(Criteria.ACCURACY_HIGH);
         mFineCriteria.setBearingAccuracy(Criteria.ACCURACY_HIGH);
-        mFineCriteria.setBearingRequired(true);
-        mLocationManager.getBestProvider(mFineCriteria, true);
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, this);
+        mFineCriteria.setCostAllowed(true);
+        mFineCriteria.setBearingRequired(false);
+        //mLocationManager.getBestProvider(mFineCriteria, true);
+        //mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, this);
+        mLocationManager.requestLocationUpdates(250, 5, mFineCriteria, this, null);
     }
 
     public void stop(){
@@ -82,10 +87,12 @@ public abstract class DeviceSpeedDetector implements LocationListener{
             else{
                 lastLocation = location;
             }
-            int speed = (int)((distance/timeElapsed)*(18/5));
+            //int speed = (int)((distance/timeElapsed)*(18/5));
 
+            int speed = (int) location.getSpeed()*(18/5);
+
+            Log.d(TAG, "Speed:"+speed+"km/h");
             updateService(speed, location.getLatitude(), location.getLongitude());
-
 
             //get last device status
             mLastDeviceStatus = mDeviceStatus;
