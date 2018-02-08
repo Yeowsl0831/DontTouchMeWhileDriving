@@ -17,8 +17,34 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="2"
-            android:paddingLeft="60dp"
             android:orientation="horizontal"
+            android:paddingLeft="60dp"
+            android:weightSum="2">
+
+            <ImageView
+                android:id="@+id/lockScreenImageView"
+                android:layout_width="80dp"
+                android:layout_height="40dp"
+                android:layout_gravity="center"
+                android:layout_weight="1"
+                app:srcCompat="@drawable/lock_button_icon" />
+
+            <CheckBox
+                android:id="@+id/lockScreenCheckBox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:layout_marginLeft="100dp"
+                android:layout_weight="1" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:orientation="horizontal"
+            android:paddingLeft="60dp"
             android:weightSum="2">
 
             <ImageView
@@ -92,8 +118,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="2"
-            android:paddingLeft="60dp"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:paddingLeft="60dp">
 
             <ImageView
                 android:id="@+id/speedImage"
@@ -107,19 +133,19 @@
                 android:id="@+id/speedEditText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:layout_gravity="center"
                 android:layout_marginLeft="24dp"
+                android:layout_weight="1"
                 android:ems="5"
+                android:inputType="number"
                 android:text="70"
-                android:textDirection="rtl"
-                android:inputType="number" />
+                android:textDirection="rtl" />
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="12"
+            android:layout_weight="10"
             android:orientation="horizontal">
 
             <ImageButton
@@ -127,8 +153,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="bottom|center"
-                android:layout_weight="1"
                 android:layout_marginBottom="20dp"
+                android:layout_weight="1"
                 android:background="@color/transparent"
                 app:srcCompat="@drawable/save_icon" />
         </LinearLayout>

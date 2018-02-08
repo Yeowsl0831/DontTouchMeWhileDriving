@@ -1,7 +1,5 @@
 package com.example.prn763.donttouchmewhiledriving;
 
-import android.util.Log;
-
 /**
  * Created by PRN763 on 1/30/2018.
  */
@@ -14,6 +12,7 @@ public class ConfigPredefineEnvironment {
     private boolean mEnabledVibrator = false;
     private boolean mEnabledAlertTone = false;
     private boolean mEnabledEmailNotification = false;
+    private boolean mEnabledScreenLock = false;
     private int mSpeedLimitNotification = 1000;
 
 
@@ -30,6 +29,8 @@ public class ConfigPredefineEnvironment {
         }
         return mCpe;
     }
+
+    public boolean cpe_shut_down_activity(){ return true; }
 
     public int cpe_count_down_timer(){
         return CPE_COUNT_DOWN_TIMER_IN_MS;
@@ -51,6 +52,8 @@ public class ConfigPredefineEnvironment {
         return mEnabledAlertTone;
     }
 
+    public boolean cpe_enabled_screen_lock(){return mEnabledScreenLock; }
+
     public boolean cpe_enable_email_notification(){return mEnabledEmailNotification; }
 
     public int cpe_car_speed_limit(){
@@ -65,12 +68,11 @@ public class ConfigPredefineEnvironment {
         mEnabledAlertTone = isEnabled;
     }
 
-    public void cpe_set_enabled_email_notification(boolean isEnabled){
-        mEnabledEmailNotification = isEnabled;
-    }
+    public void cpe_set_enabled_email_notification(boolean isEnabled){ mEnabledEmailNotification = isEnabled; }
 
-    public void cpe_set_speed_limit(int speed){
-        Log.d("CPE", "Speed:"+speed);
-        mSpeedLimitNotification = speed;
-    }
+    public void cpe_set_enabled_screen_lock(boolean isEnabled){ mEnabledScreenLock = isEnabled; }
+
+    public void cpe_set_speed_limit(int speed){ mSpeedLimitNotification = speed; }
+
+
 }

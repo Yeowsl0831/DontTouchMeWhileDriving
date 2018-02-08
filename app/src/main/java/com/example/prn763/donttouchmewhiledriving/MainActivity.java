@@ -1,6 +1,5 @@
 package com.example.prn763.donttouchmewhiledriving;
 
-
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
 import android.content.Context;
@@ -10,6 +9,7 @@ import android.content.ServiceConnection;
 import android.database.Cursor;
 import android.media.AudioManager;
 import android.media.MediaPlayer;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.os.Vibrator;
@@ -17,7 +17,6 @@ import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Gravity;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageButton;
@@ -37,7 +36,8 @@ enum imageType{
 }
 
 enum deviceUIUpdateState{
-    UPDATE_DEVICE_UI_INVALID,
+    UPDATE_DEVICE_NONE,
+    UPDATE_DEVICE_CURRENT_SPEED,
     UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS,
     UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS,
     UPDATE_DEVICE_UI_PHONE_IS_IDLE,
@@ -58,26 +58,27 @@ public class MainActivity extends AppCompatActivity{
     private boolean mIsBound;
     private ImageView mCustomToastImageView;
     private Toast mCustomToast;
+    private TextView mDebugSpeedTextView;
+    private deviceUIUpdateState mCurrentDeviceState;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        setTitle("Home");
 
-        //load setting
         loadSettingConfiguration();
 
-        //initialize
+        mCurrentDeviceState = deviceUIUpdateState.UPDATE_DEVICE_NONE;
+
         mCurrentVolume = 0;
         mAudioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         mVibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
+        mDebugSpeedTextView = findViewById(R.id.debugSpeedTextView);
 
-        //setup start button
         configureStartServiceButton();
-        //setup setting button
+
         configureSettingButton();
-        //configure custom toast layout
+
         configureCustomToastMessage();
     }
 
@@ -89,10 +90,13 @@ public class MainActivity extends AppCompatActivity{
             int emailSetting = dbCursor.getInt(1);
             int toneSetting = dbCursor.getInt(2);
             int vibrationSetting = dbCursor.getInt(3);
-            int speedSetting = dbCursor.getInt(4);
+            int screenLockSetting = dbCursor.getInt(4);
+            int speedSetting = dbCursor.getInt(5);
+
             ConfigPredefineEnvironment.getInstance().cpe_set_enabled_email_notification(emailSetting==1?true:false);
             ConfigPredefineEnvironment.getInstance().cpe_set_enabled_alert_tone(toneSetting==1?true:false);
             ConfigPredefineEnvironment.getInstance().cpe_set_enabled_vibrator(vibrationSetting==1?true:false);
+            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_screen_lock(screenLockSetting==1?true:false);
             ConfigPredefineEnvironment.getInstance().cpe_set_speed_limit(speedSetting);
         }
         dbCursor.close();
@@ -116,7 +120,6 @@ public class MainActivity extends AppCompatActivity{
 
     @Override
     protected void onPause() {
-
         super.onPause();
     }
 
@@ -128,7 +131,14 @@ public class MainActivity extends AppCompatActivity{
     @Override
     protected void onDestroy() {
         super.onDestroy();
+
         stopTone();
+
+        if(mIsBound){
+            mIsBound = false;
+            unbindService(mConnection);
+            mConnection = null;
+        }
     }
 
     private ServiceConnection mConnection = new ServiceConnection() {
@@ -159,8 +169,6 @@ public class MainActivity extends AppCompatActivity{
         }
     };
 
-    //TODO:to be remove so lousy code design
-    static int cnt = 3;
     private BroadcastReceiver  BReceiver = new BroadcastReceiver(){
 
         @Override
@@ -169,37 +177,35 @@ public class MainActivity extends AppCompatActivity{
 
             if(action == "DeviceStatus"){
                 int uiUpdateState = intent.getIntExtra("state", -1);
+                int speed = intent.getIntExtra("speed", -1);
 
-                switch(deviceUIUpdateState.values()[uiUpdateState]){
+                mCurrentDeviceState = deviceUIUpdateState.values()[uiUpdateState];
+
+                switch(mCurrentDeviceState){
                     case UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS:
-                        //TODO: very lousy design for display
-                        if(cnt == 3){
-                            displayCustomToast(imageType.COUNT_DOWN_3);
-                        }else if(cnt == 2){
-                            displayCustomToast(imageType.COUNT_DOWN_2);
-                        }else if(cnt == 1){
-                            displayCustomToast(imageType.COUNT_DOWN_1);
-                        }
-
-                        cnt -= 1;
-
-                        if(cnt == 0){
-                            cnt = 3;
-                        }
-
+                        displayCustomToast(imageType.COUNT_DOWN_1);
                         break;
                     case UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS:
-                        displayCustomToast(imageType.ANGRY_EMOJI);
-                        if(ConfigPredefineEnvironment.getInstance().cpe_enable_alert_tone()){
-                            emitMaxWarmingAlertTone(R.raw.warning_tone, true);
+                        if(ConfigPredefineEnvironment.getInstance().cpe_enabled_screen_lock()){
+                            Intent i = new Intent(MainActivity.this, LockScreenActivity.class);
+                            startActivity(i);
+                        }else{
+                            displayCustomToast(imageType.ANGRY_EMOJI);
+                            if(ConfigPredefineEnvironment.getInstance().cpe_enable_alert_tone()){
+                                emitMaxWarmingAlertTone(R.raw.warning_tone, true);
+                            }
+                            playVibration(true);
                         }
-
-                        playVibration(true);
                         break;
                     case UPDATE_DEVICE_UI_PHONE_IS_IDLE:
-                        displayCustomToast(imageType.HAPPY_EMOJI);
-                        stopTone();
-                        playVibration(false);
+                        if(ConfigPredefineEnvironment.getInstance().cpe_enabled_screen_lock()){
+                            LockScreenActivity.mLockScreenActivity.finish();
+                        }else{
+                            displayCustomToast(imageType.HAPPY_EMOJI);
+                            stopTone();
+                            playVibration(false);
+                        }
+
                         break;
                     case UPDATE_DEVICE_UI_PHONE_STOP_TONE:
                         stopTone();
@@ -208,6 +214,10 @@ public class MainActivity extends AppCompatActivity{
                         displayCustomToast(imageType.SPEED_LIMIT);
                         emitMaxWarmingAlertTone(R.raw.exceed_speed_limit_tone, false);
                         break;
+                    case UPDATE_DEVICE_CURRENT_SPEED:
+                        mDebugSpeedTextView.setVisibility(View.VISIBLE);
+                        mDebugSpeedTextView.setText(speed+"km/h");
+                        break;
                 }
             }
         }
@@ -215,6 +225,9 @@ public class MainActivity extends AppCompatActivity{
 
     private void emitMaxWarmingAlertTone(int tone_id, boolean isLoop){
         if(ConfigPredefineEnvironment.getInstance().cpe_enable_alert_tone()){
+            //reset any existing tone to reduce the 2tones messed up.
+            stopTone();
+
             if(mAudioManager != null){
                 mCurrentVolume = mAudioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
                 mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mAudioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC), 0);
@@ -224,16 +237,24 @@ public class MainActivity extends AppCompatActivity{
     }
 
     public void playTone(int tone_id, boolean isLoop){
-        stopTone();
+
         mMediaPlayer = MediaPlayer.create(this, tone_id);
         mMediaPlayer.setLooping(isLoop);
         mMediaPlayer.start();
+        MediaPlayer.OnCompletionListener toneCompleteListener = new MediaPlayer.OnCompletionListener() {
+            @Override
+            public void onCompletion(MediaPlayer mp) {
+                //we always want to maintain the user selected volume level after tone is done.
+                mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mCurrentVolume, 0);
+            }
+
+        };
+        mMediaPlayer.setOnCompletionListener(toneCompleteListener);
     }
 
     public void stopTone(){
-        //mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mCurrentVolume, 0);
-
         if(mMediaPlayer != null){
+            mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mCurrentVolume, 0);
             mMediaPlayer.stop();
             mMediaPlayer.release();
             mMediaPlayer = null;
@@ -287,8 +308,14 @@ public class MainActivity extends AppCompatActivity{
                     mPowerButton.setImageResource(R.drawable.start_icon);
                     Toast.makeText(getApplicationContext(), "Power On Engine", Toast.LENGTH_SHORT).show();
 
-                    //shutdown activity
-                    finish();
+                    if((ConfigPredefineEnvironment.getInstance().cpe_shut_down_activity() == true) &&
+                       //Android 8.0 facing the problem when shutdown the activity,
+                       //the location listener not working
+                       (Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.O)){
+                        //shutdown activity
+                        finish();
+
+                    }
                 }
             }
         };
@@ -324,16 +351,12 @@ public class MainActivity extends AppCompatActivity{
         switch (type){
             case ANGRY_EMOJI:
             case HAPPY_EMOJI:
-                resId = R.drawable.no_phone;
+                resId = R.drawable.x_phone_icon;
                 break;
             case COUNT_DOWN_1:
-                resId = R.drawable.count_down_1;
-                break;
             case COUNT_DOWN_2:
-                resId = R.drawable.count_down_2;
-                break;
             case COUNT_DOWN_3:
-                resId = R.drawable.count_down_3;
+                resId = R.drawable.precaution_icon;
                 break;
             case SPEED_LIMIT:
                 resId = R.drawable.speed_limit_logo;

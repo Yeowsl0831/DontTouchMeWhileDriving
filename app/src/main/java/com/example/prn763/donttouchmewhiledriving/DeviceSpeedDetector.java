@@ -1,11 +1,13 @@
 package com.example.prn763.donttouchmewhiledriving;
 
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.location.Criteria;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.support.v4.app.ActivityCompat;
 import android.util.Log;
 
 
@@ -54,9 +56,9 @@ public abstract class DeviceSpeedDetector implements LocationListener{
         mFineCriteria.setBearingAccuracy(Criteria.ACCURACY_HIGH);
         mFineCriteria.setCostAllowed(true);
         mFineCriteria.setBearingRequired(false);
-        //mLocationManager.getBestProvider(mFineCriteria, true);
+        //TODO:duno why emulator only running the gps when with GPS Provider
         //mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000, 1, this);
-        mLocationManager.requestLocationUpdates(250, 5, mFineCriteria, this, null);
+        mLocationManager.requestLocationUpdates(0, 0, mFineCriteria, this, null);
     }
 
     public void stop(){
@@ -88,8 +90,12 @@ public abstract class DeviceSpeedDetector implements LocationListener{
                 lastLocation = location;
             }
             //int speed = (int)((distance/timeElapsed)*(18/5));
-
+            
             int speed = (int) location.getSpeed()*(18/5);
+            if(speed > 10){
+                speed = (int)((speed * 1.1943) + 1.8816);
+            }
+
 
             Log.d(TAG, "Speed:"+speed+"km/h");
             updateService(speed, location.getLatitude(), location.getLongitude());

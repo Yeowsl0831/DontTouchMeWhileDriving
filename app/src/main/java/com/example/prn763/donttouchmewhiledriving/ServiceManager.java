@@ -64,6 +64,8 @@ public class ServiceManager extends Service {
                 mCurrentMovementSpeed = speed;
                 mCurrentLatitude = latitude;
                 mCurrentLongitude = longitude;
+
+                sendMessageToActivity(speed,deviceUIUpdateState.UPDATE_DEVICE_CURRENT_SPEED);
             }
 
             @Override
@@ -84,7 +86,7 @@ public class ServiceManager extends Service {
 
             @Override
             public void fireCarExceedLimitAlert() {
-                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT);
+                sendMessageToActivity(0,deviceUIUpdateState.UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT);
 
                 String emailContent = "Your DontTouchMeWhileDriving app caught your status as below:\n" +
                                       "Reason: Exceed Speed Limit\n" +
@@ -106,17 +108,17 @@ public class ServiceManager extends Service {
 
             @Override
             public void processSensorIdleEvent() {
-                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_IDLE);
+                sendMessageToActivity(0,deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_IDLE);
             }
 
             @Override
             public void updateTickUiEvent() {
-                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS);
+                sendMessageToActivity(0,deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS);
             }
 
             @Override
             public void updateFireAlertUiEvent() {
-                sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS);
+                sendMessageToActivity(0,deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS);
 
                 String emailContent = "Your DontTouchMeWhileDriving app caught your status as below:\n" +
                                       "Driving with Phone: Yes\n" +
@@ -128,14 +130,15 @@ public class ServiceManager extends Service {
                                                       emailContent);
             }
         };
-        
+
         //create the dummy and transparent windows for touch event
         createWindowsForOnTouchEvent();
     }
 
-    private void sendMessageToActivity(String action, deviceUIUpdateState state) {
+    private void sendMessageToActivity(int speed, deviceUIUpdateState state) {
         Intent intent = new Intent ("DeviceStatus"); //put the same message as in the filter you used in the activity when registering the receiver
         intent.putExtra("state", state.ordinal());
+        intent.putExtra("speed", speed);
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
@@ -159,7 +162,7 @@ public class ServiceManager extends Service {
             mWindowManager = null;
         }
 
-        sendMessageToActivity("DeviceStatus", deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_STOP_TONE);
+        sendMessageToActivity(0, deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_STOP_TONE);
     }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {

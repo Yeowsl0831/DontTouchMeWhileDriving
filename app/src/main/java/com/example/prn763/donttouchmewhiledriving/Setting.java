@@ -30,6 +30,7 @@ public class Setting extends AppCompatActivity {
     private CheckBox mEmailCb;
     private CheckBox mToneCb;
     private CheckBox mVibrationCb;
+    private CheckBox mLockScreenCb;
     private EditText mSpeedEt;
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -39,6 +40,7 @@ public class Setting extends AppCompatActivity {
         mEmailCb = findViewById(R.id.emailCheckBox);
         mToneCb = findViewById(R.id.musicCheckBox);
         mVibrationCb = findViewById(R.id.vibrationCheckBox);
+        mLockScreenCb = findViewById(R.id.lockScreenCheckBox);
         mSpeedEt = findViewById(R.id.speedEditText);
         setTitle("Setting");
         //retrieve database and set to UI
@@ -55,11 +57,14 @@ public class Setting extends AppCompatActivity {
             int emailSetting = dbCursor.getInt(1);
             int toneSetting = dbCursor.getInt(2);
             int vibrationSetting = dbCursor.getInt(3);
-            int speedSetting = dbCursor.getInt(4);
+            int screenLockSetting = dbCursor.getInt(4);
+            int speedSetting = dbCursor.getInt(5);
+
             //set to display on UI
             mEmailCb.setChecked((emailSetting==TRUE)?true:false);
             mToneCb.setChecked((toneSetting==TRUE)?true:false);
             mVibrationCb.setChecked((vibrationSetting==TRUE)?true:false);
+            mLockScreenCb.setChecked((screenLockSetting==TRUE)?true:false);
             mSpeedEt.setText(String.valueOf(speedSetting), TextView.BufferType.EDITABLE);
         }
         dbCursor.close();
@@ -77,6 +82,7 @@ public class Setting extends AppCompatActivity {
                     DBHandler.getInstance(getApplicationContext()).updateDatebase(mEmailCb.isChecked()?1:0,
                                                                                   mToneCb.isChecked()?1:0,
                                                                                   mVibrationCb.isChecked()?1:0,
+                                                                                  mLockScreenCb.isChecked()?1:0,
                                                                                   Integer.parseInt(mSpeedEt.getText().toString()));
 
                 }else{
@@ -84,6 +90,7 @@ public class Setting extends AppCompatActivity {
                     DBHandler.getInstance(getApplicationContext()).insertDatabase(mEmailCb.isChecked()?1:0,
                                                                                   mToneCb.isChecked()?1:0,
                                                                                   mVibrationCb.isChecked()?1:0,
+                                                                                  mLockScreenCb.isChecked()?1:0,
                                                                                   Integer.parseInt(mSpeedEt.getText().toString()));
                 }
 
@@ -91,6 +98,7 @@ public class Setting extends AppCompatActivity {
                 ConfigPredefineEnvironment.getInstance().cpe_set_enabled_email_notification(mEmailCb.isChecked());
                 ConfigPredefineEnvironment.getInstance().cpe_set_enabled_alert_tone(mToneCb.isChecked());
                 ConfigPredefineEnvironment.getInstance().cpe_set_enabled_vibrator(mVibrationCb.isChecked());
+                ConfigPredefineEnvironment.getInstance().cpe_set_enabled_screen_lock(mLockScreenCb.isChecked());
                 ConfigPredefineEnvironment.getInstance().cpe_set_speed_limit(Integer.parseInt(mSpeedEt.getText().toString()));
             }
         };
@@ -113,7 +121,8 @@ class DBHandler extends SQLiteOpenHelper {
     private static final String COL_2_EMAIL = "EMAIL";
     private static final String COL_3_TONE = "TONE";
     private static final String COL_4_VIBRATION = "VIBRATION";
-    private static final String COL_5_SPEED = "SPEED";
+    private static final String COL_5_LOCK_SCREEN = "LOCKSCREEN";
+    private static final String COL_6_SPEED = "SPEED";
 
 
     public DBHandler(Context context) {
@@ -133,7 +142,8 @@ class DBHandler extends SQLiteOpenHelper {
         String SQL_QUERY = "create table " + TABLE_NAME + " (" + COL_1_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," + COL_2_EMAIL +" INTEGER,"+
                                                                                                                     COL_3_TONE+" TEXT,"+
                                                                                                                     COL_4_VIBRATION +" TEXT,"+
-                                                                                                                    COL_5_SPEED+" TEXT)";
+                                                                                                                    COL_5_LOCK_SCREEN+" Text,"+
+                                                                                                                    COL_6_SPEED+" TEXT)";
         sqLiteDatabase.execSQL(SQL_QUERY);
 
     }
@@ -145,13 +155,14 @@ class DBHandler extends SQLiteOpenHelper {
         onCreate(sqLiteDatabase);
     }
 
-    public boolean insertDatabase(int email, int tone, int vibration, int speed){
+    public boolean insertDatabase(int email, int tone, int vibration, int screenlock, int speed){
         SQLiteDatabase sqLiteDatabase = this.getWritableDatabase();
         ContentValues contentValues = new ContentValues();
         contentValues.put(COL_2_EMAIL, email);
         contentValues.put(COL_3_TONE, tone);
         contentValues.put(COL_4_VIBRATION, vibration);
-        contentValues.put(COL_5_SPEED, speed);
+        contentValues.put(COL_5_LOCK_SCREEN, screenlock);
+        contentValues.put(COL_6_SPEED, speed);
         long result = sqLiteDatabase.insert(TABLE_NAME, null, contentValues);
 
         if(result >= 0){
@@ -176,14 +187,15 @@ class DBHandler extends SQLiteOpenHelper {
         return count;
     }
 
-    public int updateDatebase(int email, int tone, int vibration, int speed){
+    public int updateDatebase(int email, int tone, int vibration, int screenlock, int speed){
         SQLiteDatabase sqlHelper = this.getWritableDatabase();
 
         ContentValues cv = new ContentValues();
         cv.put(COL_2_EMAIL, email);
         cv.put(COL_3_TONE, tone);
         cv.put(COL_4_VIBRATION, vibration);
-        cv.put(COL_5_SPEED, speed);
+        cv.put(COL_5_LOCK_SCREEN, screenlock);
+        cv.put(COL_6_SPEED, speed);
 
         return sqlHelper.update(TABLE_NAME, cv, COL_1_ID+"=1", null);
     }

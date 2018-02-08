@@ -14,7 +14,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/AppTheme">
+        android:theme="@style/LockScreenTheme">
         <activity android:name=".MainActivity"
                   android:screenOrientation="portrait">
             <intent-filter>
@@ -26,6 +26,10 @@
 
         <activity android:name=".Setting"
                   android:screenOrientation="portrait">
+        </activity>
+
+        <activity android:name=".LockScreenActivity"
+                  android:launchMode="singleInstance">
 
         </activity>
 
