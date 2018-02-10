@@ -25,81 +25,61 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 
-enum imageType{
+enum icon_t{
     NO_IMAGE,
-    ANGRY_EMOJI,
-    HAPPY_EMOJI,
-    COUNT_DOWN_1,
-    COUNT_DOWN_2,
-    COUNT_DOWN_3,
-    SPEED_LIMIT
+    X_PHONE_ICON,
+    PRECAUTION_ICON,
+    SPEED_LIMIT_ICON
 }
 
-enum deviceUIUpdateState{
-    UPDATE_DEVICE_NONE,
-    UPDATE_DEVICE_CURRENT_SPEED,
-    UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS,
-    UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS,
-    UPDATE_DEVICE_UI_PHONE_IS_IDLE,
-    UPDATE_DEVICE_UI_PHONE_STOP_TONE,
-    UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT
+enum service_msg_t{
+    UPDATE_NO_MSG,
+    UPDATE_ACTIVITY_GPS_CURRENT_LOCATION_SPEED,
+    UPDATE_ACTIVITY_NETWORK_CURRENT_LOCATION_SPEED,
+    UPDATE_ACTIVITY_DEVICE_IN_PRECAUTION_STATE,
+    UPDATE_ACTIVITY_DEVICE_FIRE_LOCK_ALERT_EVENT,
+    UPDATE_ACTIVITY_DEVICE_IS_IN_IDLE,
+    UPDATE_ACTIVITY_TO_TERMINATE_TONE,
+    UPDATE_ACTIVITY_DEVICE_EXCEEDING_SPEED_LIMIT
 }
 
 public class MainActivity extends AppCompatActivity{
-    final static String TAG = "MainActivity";
+    private final static String TAG = "MainActivity";
+    private static MediaPlayer mTonePlayer;
+    private static Toast mIconToast;
+    private boolean mServiceIsRun;
+    private boolean mIsBound;
     private ImageButton mPowerButton;
     private ImageButton mSettingButton;
     private int mCurrentVolume;
-    private MediaPlayer mMediaPlayer;
     private AudioManager mAudioManager;
     private Vibrator mVibrator;
     private ServiceManager mServiceBinder;
-    private boolean mIsServiceStarted;
-    private boolean mIsBound;
     private ImageView mCustomToastImageView;
-    private Toast mCustomToast;
-    private TextView mDebugSpeedTextView;
-    private deviceUIUpdateState mCurrentDeviceState;
+    private TextView mDebugGpsSpeedTextView;
+    private TextView mDebugNetworkSpeedTextView;
+    private service_msg_t mCurrentDeviceState;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        loadSettingConfiguration();
+        UpdateCpeConfiguration();
 
-        mCurrentDeviceState = deviceUIUpdateState.UPDATE_DEVICE_NONE;
+        mCurrentDeviceState = service_msg_t.UPDATE_NO_MSG;
 
         mCurrentVolume = 0;
         mAudioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         mVibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
-        mDebugSpeedTextView = findViewById(R.id.debugSpeedTextView);
+        mDebugGpsSpeedTextView = findViewById(R.id.debugGpsSpeedTextView);
+        mDebugNetworkSpeedTextView = findViewById(R.id.debugNetworkSpeedTextView);
 
-        configureStartServiceButton();
+        setupPowerButton();
 
-        configureSettingButton();
+        setupSettingButton();
 
-        configureCustomToastMessage();
-    }
-
-    private void loadSettingConfiguration(){
-        Cursor dbCursor = DBHandler.getInstance(this).getDataBase();
-
-        while (dbCursor.moveToNext())
-        {
-            int emailSetting = dbCursor.getInt(1);
-            int toneSetting = dbCursor.getInt(2);
-            int vibrationSetting = dbCursor.getInt(3);
-            int screenLockSetting = dbCursor.getInt(4);
-            int speedSetting = dbCursor.getInt(5);
-
-            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_email_notification(emailSetting==1?true:false);
-            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_alert_tone(toneSetting==1?true:false);
-            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_vibrator(vibrationSetting==1?true:false);
-            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_screen_lock(screenLockSetting==1?true:false);
-            ConfigPredefineEnvironment.getInstance().cpe_set_speed_limit(speedSetting);
-        }
-        dbCursor.close();
+        setupIconNotification();
     }
 
     @Override
@@ -152,9 +132,9 @@ public class MainActivity extends AppCompatActivity{
 
             if(mPowerButton != null && mServiceBinder != null){
 
-                mIsServiceStarted = mServiceBinder.getButtonToggleState();
+                mServiceIsRun = mServiceBinder.getButtonToggleState();
 
-                if(mIsServiceStarted == true){
+                if(mServiceIsRun == true){
                     mPowerButton.setImageResource(R.drawable.start_icon);
                 }
                 else{
@@ -179,49 +159,73 @@ public class MainActivity extends AppCompatActivity{
                 int uiUpdateState = intent.getIntExtra("state", -1);
                 int speed = intent.getIntExtra("speed", -1);
 
-                mCurrentDeviceState = deviceUIUpdateState.values()[uiUpdateState];
+                mCurrentDeviceState = service_msg_t.values()[uiUpdateState];
 
                 switch(mCurrentDeviceState){
-                    case UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS:
-                        displayCustomToast(imageType.COUNT_DOWN_1);
+                    case UPDATE_ACTIVITY_DEVICE_IN_PRECAUTION_STATE:
+                        displayIconNotification(icon_t.PRECAUTION_ICON);
                         break;
-                    case UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS:
+                    case UPDATE_ACTIVITY_DEVICE_FIRE_LOCK_ALERT_EVENT:
                         if(ConfigPredefineEnvironment.getInstance().cpe_enabled_screen_lock()){
                             Intent i = new Intent(MainActivity.this, LockScreenActivity.class);
                             startActivity(i);
                         }else{
-                            displayCustomToast(imageType.ANGRY_EMOJI);
+                            displayIconNotification(icon_t.X_PHONE_ICON);
                             if(ConfigPredefineEnvironment.getInstance().cpe_enable_alert_tone()){
                                 emitMaxWarmingAlertTone(R.raw.warning_tone, true);
                             }
                             playVibration(true);
                         }
                         break;
-                    case UPDATE_DEVICE_UI_PHONE_IS_IDLE:
+                    case UPDATE_ACTIVITY_DEVICE_IS_IN_IDLE:
                         if(ConfigPredefineEnvironment.getInstance().cpe_enabled_screen_lock()){
                             LockScreenActivity.mLockScreenActivity.finish();
                         }else{
-                            displayCustomToast(imageType.HAPPY_EMOJI);
+                            displayIconNotification(icon_t.X_PHONE_ICON);
                             stopTone();
                             playVibration(false);
                         }
 
                         break;
-                    case UPDATE_DEVICE_UI_PHONE_STOP_TONE:
+                    case UPDATE_ACTIVITY_TO_TERMINATE_TONE:
                         stopTone();
                         break;
-                    case UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT:
-                        displayCustomToast(imageType.SPEED_LIMIT);
+                    case UPDATE_ACTIVITY_DEVICE_EXCEEDING_SPEED_LIMIT:
+                        displayIconNotification(icon_t.SPEED_LIMIT_ICON);
                         emitMaxWarmingAlertTone(R.raw.exceed_speed_limit_tone, false);
                         break;
-                    case UPDATE_DEVICE_CURRENT_SPEED:
-                        mDebugSpeedTextView.setVisibility(View.VISIBLE);
-                        mDebugSpeedTextView.setText(speed+"km/h");
+                    case UPDATE_ACTIVITY_GPS_CURRENT_LOCATION_SPEED:
+                        mDebugGpsSpeedTextView.setVisibility(View.VISIBLE);
+                        mDebugGpsSpeedTextView.setText("Gps: "+speed+"km/h");
+                        break;
+                    case UPDATE_ACTIVITY_NETWORK_CURRENT_LOCATION_SPEED:
+                        mDebugNetworkSpeedTextView.setVisibility(View.VISIBLE);
+                        mDebugNetworkSpeedTextView.setText("Net: "+speed+"km/h");
                         break;
                 }
             }
         }
     };
+
+    private void UpdateCpeConfiguration(){
+        Cursor dbCursor = DBHandler.getInstance(this).getDataBase();
+
+        while (dbCursor.moveToNext())
+        {
+            int emailSetting = dbCursor.getInt(1);
+            int toneSetting = dbCursor.getInt(2);
+            int vibrationSetting = dbCursor.getInt(3);
+            int screenLockSetting = dbCursor.getInt(4);
+            int speedSetting = dbCursor.getInt(5);
+
+            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_email_notification(emailSetting==1?true:false);
+            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_alert_tone(toneSetting==1?true:false);
+            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_vibrator(vibrationSetting==1?true:false);
+            ConfigPredefineEnvironment.getInstance().cpe_set_enabled_screen_lock(screenLockSetting==1?true:false);
+            ConfigPredefineEnvironment.getInstance().cpe_set_speed_limit(speedSetting);
+        }
+        dbCursor.close();
+    }
 
     private void emitMaxWarmingAlertTone(int tone_id, boolean isLoop){
         if(ConfigPredefineEnvironment.getInstance().cpe_enable_alert_tone()){
@@ -236,11 +240,11 @@ public class MainActivity extends AppCompatActivity{
         }
     }
 
-    public void playTone(int tone_id, boolean isLoop){
+    private void playTone(int tone_id, boolean isLoop){
 
-        mMediaPlayer = MediaPlayer.create(this, tone_id);
-        mMediaPlayer.setLooping(isLoop);
-        mMediaPlayer.start();
+        mTonePlayer = MediaPlayer.create(this, tone_id);
+        mTonePlayer.setLooping(isLoop);
+        mTonePlayer.start();
         MediaPlayer.OnCompletionListener toneCompleteListener = new MediaPlayer.OnCompletionListener() {
             @Override
             public void onCompletion(MediaPlayer mp) {
@@ -249,19 +253,19 @@ public class MainActivity extends AppCompatActivity{
             }
 
         };
-        mMediaPlayer.setOnCompletionListener(toneCompleteListener);
+        mTonePlayer.setOnCompletionListener(toneCompleteListener);
     }
 
-    public void stopTone(){
-        if(mMediaPlayer != null){
+    private void stopTone(){
+        if(mTonePlayer != null){
             mAudioManager.setStreamVolume(AudioManager.STREAM_MUSIC, mCurrentVolume, 0);
-            mMediaPlayer.stop();
-            mMediaPlayer.release();
-            mMediaPlayer = null;
+            mTonePlayer.stop();
+            mTonePlayer.release();
+            mTonePlayer = null;
         }
     }
 
-    public void playVibration(boolean isVibrate){
+    private void playVibration(boolean isVibrate){
         if((mVibrator != null) &&
            (mVibrator.hasVibrator() == true) &&
            (ConfigPredefineEnvironment.getInstance().cpe_enabled_vibrator())){
@@ -281,7 +285,7 @@ public class MainActivity extends AppCompatActivity{
         }
     }
 
-    private void configureStartServiceButton(){
+    private void setupPowerButton(){
         //start the service
         mPowerButton = findViewById(R.id.power_button);
         View.OnClickListener startServiceListener = new View.OnClickListener() {
@@ -290,21 +294,20 @@ public class MainActivity extends AppCompatActivity{
 
                 Intent svcIntent = new Intent(MainActivity.this, ServiceManager.class);
 
-                if (mIsServiceStarted == true) {
+                if (mServiceIsRun == true) {
                     Log.d(TAG, "Main Activity Stop Service");
                     stopService(svcIntent);
 
                     if (mServiceBinder != null) {
-                        //TODO:Application crashed found here, maybe need to do some unbinding stuff.
                         mServiceBinder.stop();
                     }
 
-                    mIsServiceStarted = false;
+                    mServiceIsRun = false;
                     mPowerButton.setImageResource(R.drawable.stop_icon);
                     Toast.makeText(getApplicationContext(), "Power Off Engine", Toast.LENGTH_SHORT).show();
                 } else {
                     startService(svcIntent);
-                    mIsServiceStarted = true;
+                    mServiceIsRun = true;
                     mPowerButton.setImageResource(R.drawable.start_icon);
                     Toast.makeText(getApplicationContext(), "Power On Engine", Toast.LENGTH_SHORT).show();
 
@@ -322,43 +325,40 @@ public class MainActivity extends AppCompatActivity{
         mPowerButton.setOnClickListener(startServiceListener);
     }
 
-    private void configureSettingButton(){
+    private void setupSettingButton(){
         mSettingButton = findViewById(R.id.setting_button);
         View.OnClickListener startServiceListener = new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(MainActivity.this, Setting.class);
+                Intent intent = new Intent(MainActivity.this, SettingActivity.class);
                 startActivity(intent);
             }
         };
         mSettingButton.setOnClickListener(startServiceListener);
     }
 
-    public void configureCustomToastMessage(){
+    public void setupIconNotification(){
         View view = getLayoutInflater().inflate(R.layout.custom_countdown_toast, (ViewGroup) findViewById(R.id.toast_root_layout));
 
         mCustomToastImageView = view.findViewById(R.id.customToastImage);
 
-        mCustomToast = new Toast(getApplicationContext());
-        mCustomToast.setGravity(Gravity.TOP|Gravity.RIGHT, 0, 0);
-        mCustomToast.setDuration(Toast.LENGTH_SHORT);
-        mCustomToast.setView(view);
+        mIconToast = new Toast(getApplicationContext());
+        mIconToast.setGravity(Gravity.TOP|Gravity.RIGHT, 0, 0);
+        mIconToast.setDuration(Toast.LENGTH_SHORT);
+        mIconToast.setView(view);
     }
 
-    public void displayCustomToast(imageType type){
+    private void displayIconNotification(icon_t type){
         int resId = 0;
 
         switch (type){
-            case ANGRY_EMOJI:
-            case HAPPY_EMOJI:
+            case X_PHONE_ICON:
                 resId = R.drawable.x_phone_icon;
                 break;
-            case COUNT_DOWN_1:
-            case COUNT_DOWN_2:
-            case COUNT_DOWN_3:
+            case PRECAUTION_ICON:
                 resId = R.drawable.precaution_icon;
                 break;
-            case SPEED_LIMIT:
+            case SPEED_LIMIT_ICON:
                 resId = R.drawable.speed_limit_logo;
                 break;
             case NO_IMAGE:
@@ -368,7 +368,7 @@ public class MainActivity extends AppCompatActivity{
 
         mCustomToastImageView.setImageResource(resId);
 
-        mCustomToast.show();
+        mIconToast.show();
     }
 }
 

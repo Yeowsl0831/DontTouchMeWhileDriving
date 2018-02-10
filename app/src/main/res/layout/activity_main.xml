@@ -30,12 +30,22 @@
             app:srcCompat="@drawable/stop_icon" />
 
         <TextView
-            android:id="@+id/debugSpeedTextView"
+            android:id="@+id/debugGpsSpeedTextView"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_centerVertical="true"
             android:visibility="gone"
-            android:layout_toStartOf="@+id/setting_button"
+            android:text="TextView"
+            android:textSize="50dp" />
+
+        <TextView
+            android:id="@+id/debugNetworkSpeedTextView"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_alignBottom="@+id/power_button"
+            android:layout_centerHorizontal="true"
+            android:layout_marginBottom="93dp"
+            android:visibility="gone"
             android:text="TextView"
             android:textSize="50dp" />
 </RelativeLayout>

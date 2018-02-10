@@ -28,15 +28,12 @@ enum DeviceStatus{
  * Created by PRN763 on 1/21/2018.
  */
 
-//TODO:unbind iBinder
-
-
 public class ServiceManager extends Service {
     private final static String TAG = "ServiceManager";
     private final IBinder serviceBinder =  new LocalServiceBinder();
-    private DeviceSpeedDetector mDeviceSpeedDetector = null;
+    private SpeedLocationManager mSpeedLocationManager = null;
     private MotionSensorManager mMotionSensorManager = null;
-    private boolean mIsServiceStarted = false;
+    private boolean mServiceIsRun = false;
     private int mCurrentMovementSpeed = 0;
     private double mCurrentLatitude = 0.0;
     private double mCurrentLongitude = 0.0;
@@ -58,22 +55,26 @@ public class ServiceManager extends Service {
     @Override
     public void onCreate() {
         super.onCreate();
-        mDeviceSpeedDetector = new DeviceSpeedDetector(getApplicationContext()) {
+        mSpeedLocationManager = new SpeedLocationManager(getApplicationContext()) {
             @Override
-            public void updateService(int speed, double latitude, double longitude) {
+            public void updateServiceGpsLocationDetails(int speed, double latitude, double longitude) {
                 mCurrentMovementSpeed = speed;
                 mCurrentLatitude = latitude;
                 mCurrentLongitude = longitude;
 
-                sendMessageToActivity(speed,deviceUIUpdateState.UPDATE_DEVICE_CURRENT_SPEED);
+                sendMessageToActivity(speed,service_msg_t.UPDATE_ACTIVITY_GPS_CURRENT_LOCATION_SPEED);
+            }
+
+            @Override
+            public void updateServiceNetworkLocationDetails(int speed, double latitude, double longitude) {
+                sendMessageToActivity(speed,service_msg_t.UPDATE_ACTIVITY_NETWORK_CURRENT_LOCATION_SPEED);
             }
 
             @Override
             public void speedEventHandle(DeviceStatus var1) {
-                sendNotification(var1);
+                sendIndicatorNotification(var1);
 
                 if(mMotionSensorManager != null){
-                    //TODO:DeviceStatus.DEVICE_IN_DRIVING_MODE
                     if(var1 == DeviceStatus.DEVICE_IN_DRIVING_MODE){
                         Log.d(TAG, "Start the accelerometer.");
                         mMotionSensorManager.start();
@@ -86,13 +87,13 @@ public class ServiceManager extends Service {
 
             @Override
             public void fireCarExceedLimitAlert() {
-                sendMessageToActivity(0,deviceUIUpdateState.UPDATE_DEVICE_UI_CAR_EXCEED_SPEED_LIMIT);
+                sendMessageToActivity(0,service_msg_t.UPDATE_ACTIVITY_DEVICE_EXCEEDING_SPEED_LIMIT);
 
                 String emailContent = "Your DontTouchMeWhileDriving app caught your status as below:\n" +
                                       "Reason: Exceed Speed Limit\n" +
                                       "Speed: "+mCurrentMovementSpeed+"km'\'h\n" +
                                       "Location: "+mCurrentLatitude+"(Latitude) Longitude: "+mCurrentLongitude+"(Longitude)";
-                new EmailManager().sendEmail(deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS,
+                new EmailManager().sendEmail(service_msg_t.UPDATE_ACTIVITY_DEVICE_FIRE_LOCK_ALERT_EVENT,
                                             "yslin91@hotmail.com",
                                             "DontTouchMeWhileDriving : Driving Report!",
                                              emailContent);
@@ -108,23 +109,23 @@ public class ServiceManager extends Service {
 
             @Override
             public void processSensorIdleEvent() {
-                sendMessageToActivity(0,deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_IDLE);
+                sendMessageToActivity(0,service_msg_t.UPDATE_ACTIVITY_DEVICE_IS_IN_IDLE);
             }
 
             @Override
             public void updateTickUiEvent() {
-                sendMessageToActivity(0,deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS);
+                sendMessageToActivity(0,service_msg_t.UPDATE_ACTIVITY_DEVICE_IN_PRECAUTION_STATE);
             }
 
             @Override
             public void updateFireAlertUiEvent() {
-                sendMessageToActivity(0,deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS);
+                sendMessageToActivity(0,service_msg_t.UPDATE_ACTIVITY_DEVICE_FIRE_LOCK_ALERT_EVENT);
 
                 String emailContent = "Your DontTouchMeWhileDriving app caught your status as below:\n" +
                                       "Driving with Phone: Yes\n" +
                                       "Speed: "+mCurrentMovementSpeed+"km'\'h\n" +
                                       "Location: "+mCurrentLatitude+"(Latitude) Longitude: "+mCurrentLongitude+"(Longitude)";
-                new EmailManager().sendEmail(deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_PLAYING_BY_USERS,
+                new EmailManager().sendEmail(service_msg_t.UPDATE_ACTIVITY_DEVICE_FIRE_LOCK_ALERT_EVENT,
                                                      "yslin91@hotmail.com",
                                                      "DontTouchMeWhileDriving : Driving Report!",
                                                       emailContent);
@@ -135,7 +136,7 @@ public class ServiceManager extends Service {
         createWindowsForOnTouchEvent();
     }
 
-    private void sendMessageToActivity(int speed, deviceUIUpdateState state) {
+    private void sendMessageToActivity(int speed, service_msg_t state) {
         Intent intent = new Intent ("DeviceStatus"); //put the same message as in the filter you used in the activity when registering the receiver
         intent.putExtra("state", state.ordinal());
         intent.putExtra("speed", speed);
@@ -143,14 +144,14 @@ public class ServiceManager extends Service {
     }
 
     public boolean getButtonToggleState(){
-        return mIsServiceStarted;
+        return mServiceIsRun;
     }
 
     public void stop(){
         Log.d(TAG, "Stop Service Manager!!!");
         mMotionSensorManager.stop();
-        mIsServiceStarted = false;
-        mDeviceSpeedDetector.stop();
+        mServiceIsRun = false;
+        mSpeedLocationManager.stop();
 
         //unregister touch listener
         if(mDummyView != null){
@@ -162,17 +163,14 @@ public class ServiceManager extends Service {
             mWindowManager = null;
         }
 
-        sendMessageToActivity(0, deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_STOP_TONE);
+        sendMessageToActivity(0, service_msg_t.UPDATE_ACTIVITY_TO_TERMINATE_TONE);
     }
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-        if(mDeviceSpeedDetector != null){
-            //start the speed track service
-            mDeviceSpeedDetector.start();
-            //notify users device status
-            sendNotification(mDeviceSpeedDetector.getDeviceMovementStatus());
-            //update service flag
-            mIsServiceStarted = true;
+        if(mSpeedLocationManager != null){
+            mSpeedLocationManager.start();
+            sendIndicatorNotification(mSpeedLocationManager.getDeviceMovementStatus());
+            mServiceIsRun = true;
         }
         //added dummy view for detect touch event when activity is closed.
         addViewOnService();
@@ -186,7 +184,7 @@ public class ServiceManager extends Service {
         super.onDestroy();
     }
 
-    public void sendNotification(DeviceStatus deviceStatus) {
+    public void sendIndicatorNotification(DeviceStatus deviceStatus) {
         NotificationCompat.Builder notify = new NotificationCompat.Builder(this);
 
         notify.setContentTitle("Monitor Users Device Status");
@@ -258,6 +256,4 @@ public class ServiceManager extends Service {
             mWindowManager.addView(mDummyView, params);
         }
     }
-
-
 }

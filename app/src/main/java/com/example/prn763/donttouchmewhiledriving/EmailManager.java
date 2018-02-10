@@ -89,7 +89,7 @@ public class EmailManager extends AsyncTask<Void, Void, Void>{
         //Toast.makeText(context,"Message Sent",Toast.LENGTH_LONG).show();
     }
 
-    public void sendEmail(deviceUIUpdateState deviceUiSate, String email, String subject, String message){
+    public void sendEmail(service_msg_t msg, String email, String subject, String message){
         if(ConfigPredefineEnvironment.getInstance().cpe_enable_email_notification()){
             this.mEmail = email;
             this.mSubject = subject;
