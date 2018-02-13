@@ -86,9 +86,9 @@ public abstract class SpeedLocationManager{
                 else{
                     lastLocation = location;
                 }
-                //int speed = (int)((distance/timeElapsed)*(18/5));
+                int speed = (int)((distance/timeElapsed)*(18/5));
 
-                int speed = (int) location.getSpeed()*(18/5);
+                //int speed = (int) location.getSpeed()*(18/5);
 
                 if(speed > 10){
                     speed = (int)((speed * 1.1943) + 1.8816);

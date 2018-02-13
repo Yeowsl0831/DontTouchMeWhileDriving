@@ -103,8 +103,7 @@ public class ServiceManager extends Service {
         mMotionSensorManager = new MotionSensorManager(getApplicationContext()) {
             @Override
             public void processUpdateCountDownUiEvent() {
-                //Log.d(TAG, "Start Count Down Event");
-                //sendMessageToActivity("DeviceStatus",deviceUIUpdateState.UPDATE_DEVICE_UI_PHONE_IS_COUNTDOWN_3_SECS);
+                sendMessageToActivity(0,service_msg_t.UPDATE_ACTIVITY_DEVICE_IN_PRECAUTION_STATE);
             }
 
             @Override
@@ -114,11 +113,12 @@ public class ServiceManager extends Service {
 
             @Override
             public void updateTickUiEvent() {
-                sendMessageToActivity(0,service_msg_t.UPDATE_ACTIVITY_DEVICE_IN_PRECAUTION_STATE);
+                //sendMessageToActivity(0,service_msg_t.UPDATE_ACTIVITY_DEVICE_IN_PRECAUTION_STATE);
             }
 
             @Override
             public void updateFireAlertUiEvent() {
+                Log.d(TAG, "updateFireAlertUiEvent");
                 sendMessageToActivity(0,service_msg_t.UPDATE_ACTIVITY_DEVICE_FIRE_LOCK_ALERT_EVENT);
 
                 String emailContent = "Your DontTouchMeWhileDriving app caught your status as below:\n" +
@@ -254,6 +254,18 @@ public class ServiceManager extends Service {
 
         if(mWindowManager != null && mDummyView != null){
             mWindowManager.addView(mDummyView, params);
+        }
+    }
+
+    public void UpdateHomeInputIsTriggered(){
+        if(mMotionSensorManager != null){
+            mMotionSensorManager.requestFireAlertEvent();
+        }
+    }
+
+    public void requestStartFireAlertTimer(){
+        if (mMotionSensorManager != null){
+            mMotionSensorManager.requestStartFireAlertEventTimer();
         }
     }
 }

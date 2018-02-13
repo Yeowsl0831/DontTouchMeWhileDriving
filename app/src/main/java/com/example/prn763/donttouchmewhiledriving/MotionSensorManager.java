@@ -11,14 +11,6 @@ import android.util.Log;
  * Created by PRN763 on 1/21/2018.
  */
 
-enum DeviceMotionStatus{
-    DEVICE_MOTION_IS_ILDE,
-    DEVICE_MOTION_IS_MOVE_UP,
-    DEVICE_MOTION_IS_MOVE_LEFT,
-    DEVICE_MOTION_IS_MOVE_RIGHT,
-    DEVICE_MOTION_IS_MOVE_DOWN
-}
-
 enum UiEventTimerState{
     TIMER_STATE_IS_DO_NOTHING_EVENT,
     TIMER_STATE_IS_COUNT_DOWN_EVENT,
@@ -45,8 +37,9 @@ public abstract class MotionSensorManager implements SensorEventListener {
     private boolean mFirstLaunchAccelerometer;
     private boolean mIsFireAlertUiUpdated;
     private boolean mDeviceIsOnTouch;
+    private boolean mIsExternalRequest;
+    private boolean mIsTimerRequest;
     private UiEventTimerState mTimerEvent;
-    private TimerHandle mTimerHandle;
     private TimerHandle mTimerFireAlertEvent;
 
 
@@ -63,25 +56,9 @@ public abstract class MotionSensorManager implements SensorEventListener {
         mFirstLaunchAccelerometer = true;
         mIsFireAlertUiUpdated = false;
         mDeviceIsOnTouch = false;
+        mIsExternalRequest = false;
+        mIsTimerRequest = false;
         mTimerEvent = UiEventTimerState.TIMER_STATE_IS_COUNT_DOWN_EVENT;
-
-        mTimerHandle = new TimerHandle(ConfigPredefineEnvironment.getInstance().cpe_count_down_timer(),
-                                       ConfigPredefineEnvironment.getInstance().cpe_count_down_interval_timer()) {
-            @Override
-            public void processTimeOutEvent() {
-                //only allowed to send a warning when after 3secs count down
-                mDeviceIsOnTouch = false;
-                mTimerEvent = UiEventTimerState.TIMER_STATE_IS_FIRE_ALERT_EVENT;
-                mTimerFireAlertEvent.onStart();
-            }
-
-            @Override
-            public void processOnTickEvent(long l) {
-                if(mTimerEvent == UiEventTimerState.TIMER_STATE_IS_DO_NOTHING_EVENT){
-                    updateTickUiEvent();
-                }
-            }
-        };
 
         mTimerFireAlertEvent = new TimerHandle(ConfigPredefineEnvironment.getInstance().cpe_fire_alert_event_timer(),
                                                ConfigPredefineEnvironment.getInstance().cpe_count_down_interval_timer()){
@@ -92,6 +69,13 @@ public abstract class MotionSensorManager implements SensorEventListener {
                     processSensorIdleEvent();
                     //timer expired, ui is reset
                     mIsFireAlertUiUpdated = false;
+
+                    if(mIsTimerRequest == true){
+                        Log.d(TAG, "Is mIsExternalTimerRequest");
+                        mIsTimerRequest = false;
+
+                        mIsExternalRequest = false;
+                    }
                 }
                 //reset the touch event input
                 mDeviceIsOnTouch = false;
@@ -121,11 +105,7 @@ public abstract class MotionSensorManager implements SensorEventListener {
             mSensorIsStarted = false;
         }
 
-        //when location service is stopped, accelerometer will stop too
-        //make sure stop the timer is launched before.
-        if(mTimerHandle.isTimerRunning() == true){
-            mTimerHandle.onCancel(true);
-        }
+        mTimerEvent = UiEventTimerState.TIMER_STATE_IS_COUNT_DOWN_EVENT;
 /*
         //TODO: investigate whether need to remove the object?/ previously remove caused the application clash.
         if(mTimerHandle != null){
@@ -135,6 +115,37 @@ public abstract class MotionSensorManager implements SensorEventListener {
         if(mTimerFireAlertEvent != null){
             mTimerFireAlertEvent = null;
         }*/
+    }
+
+
+    public void requestFireAlertEvent(){
+        //restart the timer
+        if(mTimerFireAlertEvent.isTimerRunning() == true){
+            //if timer launched before, reset timer and relaunch again
+            mTimerFireAlertEvent.onCancel(false);
+        }
+
+        updateFireAlertUiEvent();
+
+        mIsExternalRequest = true;
+
+        Log.d(TAG, "requestFireAlertEvent");
+    }
+
+    public void requestStartFireAlertEventTimer(){
+        if(mIsExternalRequest == true){
+            Log.d(TAG, "requestStartFireAlertEventTimer");
+            //restart the timer
+            if(mTimerFireAlertEvent.isTimerRunning() == true){
+                //if timer launched before, reset timer and relaunch again
+                mTimerFireAlertEvent.onCancel(false);
+            }
+            mTimerFireAlertEvent.onStart();
+
+            mIsTimerRequest = true;
+
+            mIsFireAlertUiUpdated = true;
+        }
     }
 
     @Override
@@ -160,21 +171,21 @@ public abstract class MotionSensorManager implements SensorEventListener {
            Math.abs(diffVerticalAccelerometer) > 0.5 ||
            Math.abs(diffAltitudeAccelerometer) > 2.0){
             if(mTimerEvent == UiEventTimerState.TIMER_STATE_IS_COUNT_DOWN_EVENT){
-                mTimerEvent = UiEventTimerState.TIMER_STATE_IS_DO_NOTHING_EVENT;
+                mTimerEvent = UiEventTimerState.TIMER_STATE_IS_FIRE_ALERT_EVENT;
                 processUpdateCountDownUiEvent();
-                mTimerHandle.onStart();
+                mDeviceIsOnTouch = false;
             }
         }
 
         if((mTimerEvent == UiEventTimerState.TIMER_STATE_IS_FIRE_ALERT_EVENT) &&
-           (mIsFireAlertUiUpdated == false) &&
+           (mIsFireAlertUiUpdated == false) && /* Update when no UI is updating before */
            (mDeviceIsOnTouch == true)){
             //restart the timer
             if(mTimerFireAlertEvent.isTimerRunning() == true){
                 //if timer launched before, reset timer and relaunch again
                 mTimerFireAlertEvent.onCancel(false);
-                mTimerFireAlertEvent.onStart();
             }
+            mTimerFireAlertEvent.onStart();
 
             updateFireAlertUiEvent();
             mIsFireAlertUiUpdated = true;

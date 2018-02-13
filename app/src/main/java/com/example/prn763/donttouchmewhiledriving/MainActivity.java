@@ -40,7 +40,10 @@ enum service_msg_t{
     UPDATE_ACTIVITY_DEVICE_FIRE_LOCK_ALERT_EVENT,
     UPDATE_ACTIVITY_DEVICE_IS_IN_IDLE,
     UPDATE_ACTIVITY_TO_TERMINATE_TONE,
-    UPDATE_ACTIVITY_DEVICE_EXCEEDING_SPEED_LIMIT
+    UPDATE_ACTIVITY_DEVICE_EXCEEDING_SPEED_LIMIT,
+    UPDATE_ACTIVITY_RECEIVED_HOME_PRESSED_ON_LOCK_SCREEN,
+    UPDATE_ACTIVITY_REQUEST_START_FIRE_ALERT_EVENT_TIMER,
+    UPDATE_ACTIVITY_FORCE_SHUT_DOWN
 }
 
 public class MainActivity extends AppCompatActivity{
@@ -59,6 +62,7 @@ public class MainActivity extends AppCompatActivity{
     private TextView mDebugGpsSpeedTextView;
     private TextView mDebugNetworkSpeedTextView;
     private service_msg_t mCurrentDeviceState;
+    private Intent mServiceIntent;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -68,7 +72,7 @@ public class MainActivity extends AppCompatActivity{
         UpdateCpeConfiguration();
 
         mCurrentDeviceState = service_msg_t.UPDATE_NO_MSG;
-
+        mServiceIntent = null;
         mCurrentVolume = 0;
         mAudioManager = (AudioManager) getSystemService(AUDIO_SERVICE);
         mVibrator = (Vibrator) getSystemService(VIBRATOR_SERVICE);
@@ -166,6 +170,7 @@ public class MainActivity extends AppCompatActivity{
                         displayIconNotification(icon_t.PRECAUTION_ICON);
                         break;
                     case UPDATE_ACTIVITY_DEVICE_FIRE_LOCK_ALERT_EVENT:
+                        Log.d(TAG, "UPDATE_ACTIVITY_DEVICE_FIRE_LOCK_ALERT_EVENT");
                         if(ConfigPredefineEnvironment.getInstance().cpe_enabled_screen_lock()){
                             Intent i = new Intent(MainActivity.this, LockScreenActivity.class);
                             startActivity(i);
@@ -174,8 +179,8 @@ public class MainActivity extends AppCompatActivity{
                             if(ConfigPredefineEnvironment.getInstance().cpe_enable_alert_tone()){
                                 emitMaxWarmingAlertTone(R.raw.warning_tone, true);
                             }
-                            playVibration(true);
                         }
+                        playVibration(true);
                         break;
                     case UPDATE_ACTIVITY_DEVICE_IS_IN_IDLE:
                         if(ConfigPredefineEnvironment.getInstance().cpe_enabled_screen_lock()){
@@ -183,9 +188,9 @@ public class MainActivity extends AppCompatActivity{
                         }else{
                             displayIconNotification(icon_t.X_PHONE_ICON);
                             stopTone();
-                            playVibration(false);
-                        }
 
+                        }
+                        playVibration(false);
                         break;
                     case UPDATE_ACTIVITY_TO_TERMINATE_TONE:
                         stopTone();
@@ -201,6 +206,26 @@ public class MainActivity extends AppCompatActivity{
                     case UPDATE_ACTIVITY_NETWORK_CURRENT_LOCATION_SPEED:
                         mDebugNetworkSpeedTextView.setVisibility(View.VISIBLE);
                         mDebugNetworkSpeedTextView.setText("Net: "+speed+"km/h");
+                        break;
+                    case UPDATE_ACTIVITY_RECEIVED_HOME_PRESSED_ON_LOCK_SCREEN:
+                        if(mServiceBinder != null){
+                            mServiceBinder.UpdateHomeInputIsTriggered();
+                        }
+                        break;
+                    case UPDATE_ACTIVITY_REQUEST_START_FIRE_ALERT_EVENT_TIMER:
+                        if(mServiceBinder != null){
+                            mServiceBinder.requestStartFireAlertTimer();
+                        }
+                        break;
+                    case UPDATE_ACTIVITY_FORCE_SHUT_DOWN:
+                        if(mServiceIntent != null){
+                            stopService(mServiceIntent);
+                        }
+
+                        if (mServiceBinder != null) {
+                            mServiceBinder.stop();
+                        }
+                        mServiceIsRun = false;
                         break;
                 }
             }
@@ -292,11 +317,11 @@ public class MainActivity extends AppCompatActivity{
             @Override
             public void onClick(View view) {
 
-                Intent svcIntent = new Intent(MainActivity.this, ServiceManager.class);
+                mServiceIntent = new Intent(MainActivity.this, ServiceManager.class);
 
                 if (mServiceIsRun == true) {
                     Log.d(TAG, "Main Activity Stop Service");
-                    stopService(svcIntent);
+                    stopService(mServiceIntent);
 
                     if (mServiceBinder != null) {
                         mServiceBinder.stop();
@@ -306,7 +331,7 @@ public class MainActivity extends AppCompatActivity{
                     mPowerButton.setImageResource(R.drawable.stop_icon);
                     Toast.makeText(getApplicationContext(), "Power Off Engine", Toast.LENGTH_SHORT).show();
                 } else {
-                    startService(svcIntent);
+                    startService(mServiceIntent);
                     mServiceIsRun = true;
                     mPowerButton.setImageResource(R.drawable.start_icon);
                     Toast.makeText(getApplicationContext(), "Power On Engine", Toast.LENGTH_SHORT).show();
@@ -344,7 +369,7 @@ public class MainActivity extends AppCompatActivity{
 
         mIconToast = new Toast(getApplicationContext());
         mIconToast.setGravity(Gravity.TOP|Gravity.RIGHT, 0, 0);
-        mIconToast.setDuration(Toast.LENGTH_SHORT);
+        mIconToast.setDuration(Toast.LENGTH_LONG);
         mIconToast.setView(view);
     }
 
