@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "1094313742272",
+    "firebase_url": "https://donttouchmewhiledriving.firebaseio.com",
+    "project_id": "donttouchmewhiledriving",
+    "storage_bucket": "donttouchmewhiledriving.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1094313742272:android:18ff728e3e89dd8d",
+        "android_client_info": {
+          "package_name": "com.example.prn763.donttouchmewhiledriving"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1094313742272-glqqbl5nit5f7tcb0hnaviqmjbgb25mh.apps.googleusercontent.com",
+          "client_type": 3
+        },
+        {
+          "client_id": "1094313742272-7lhdk50b9eggkqdqc8nf51nr9rlog3rf.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.example.prn763.donttouchmewhiledriving",
+            "certificate_hash": "850a28cdcfa9f312ad92f585ce9b51f28474963c"
+          }
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0pBISBXX8aOuUFTwhowLU4Lgvg3EL3qQ"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1094313742272-glqqbl5nit5f7tcb0hnaviqmjbgb25mh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

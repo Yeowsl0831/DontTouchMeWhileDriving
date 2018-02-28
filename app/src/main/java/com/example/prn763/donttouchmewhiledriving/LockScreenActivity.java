@@ -71,4 +71,5 @@ public class LockScreenActivity extends AppCompatActivity {
         intent.putExtra("speed", speed);
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
+
 }

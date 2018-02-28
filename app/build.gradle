@@ -28,4 +28,8 @@ dependencies {
     implementation files('libs/activation.jar')
     implementation files('libs/additionnal.jar')
     implementation files('libs/mail.jar')
+    compile 'com.google.firebase:firebase-core:11.8.0'
+    compile 'com.google.android.gms:play-services-auth:11.8.0'
 }
+
+apply plugin: 'com.google.gms.google-services'
